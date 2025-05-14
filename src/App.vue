@@ -1,6 +1,20 @@
+<script>
+import { useRoute } from 'vue-router'
+
+export default {
+  setup() {
+    const route = useRoute()
+    const hiddenPaths = ['/']
+
+    return { route, hiddenPaths }
+  },
+}
+</script>
+
 <template>
   <div id="app">
-    <nav class="navbar">
+    <!-- 로그인/회원가입 페이지에서는 nav 숨김 -->
+    <nav v-if="!hiddenPaths.includes(route.path)" class="navbar">
       <div class="nav-left">
         <img src="@/assets/logo.png" alt="Logo" class="logo" />
         <ul class="nav-links">
@@ -10,6 +24,7 @@
           <li><router-link to="/shopping-list">Shopping List</router-link></li>
         </ul>
       </div>
+
       <div class="nav-right">
         <button class="icon-btn">🔔</button>
         <router-link to="/account">
@@ -17,6 +32,7 @@
         </router-link>
       </div>
     </nav>
+
     <router-view />
   </div>
 </template>
