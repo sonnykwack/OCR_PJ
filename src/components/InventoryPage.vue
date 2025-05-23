@@ -28,22 +28,20 @@
 
         <!-- 기존 아이템들 편집/삭제 -->
         <ul class="manage-list">
-          <li v-for="(item, idx) in manageItems" :key="idx">
+          <li v-for="(item, idx) in manageItems" :key="item.name + '-' + idx">
             <input v-model="item.name" placeholder="Name" />
             <input v-model="item.qty" placeholder="Qty (e.g. 2L)" />
+            <input v-model.number="item.expiryDays" placeholder="Days Left" />
+            <span v-if="item.expiryDays">({{ formatExpiry(item.expiryDays) }})</span>
             <button @click="removeItem(idx)">Delete</button>
           </li>
         </ul>
 
         <!-- 새 아이템 추가 -->
         <div class="add-sub-item">
-          <select v-model="newSubItem.section">
-            <option disabled value="">Select Section</option>
-            <option value="Refrigerated">Refrigerated</option>
-            <option value="Refrigerated">Refrigerated</option>
-          </select>
           <input v-model="newSubItem.name" placeholder="New item name" />
           <input v-model="newSubItem.qty" placeholder="New item qty" />
+          <input v-model="newSubItem.daysLeft" type="number" placeholder="Days until expiry" />
           <button @click="addSubItem()">Add</button>
         </div>
 
@@ -51,6 +49,7 @@
         <div class="modal-actions">
           <button @click="saveManage()">Save</button>
           <button @click="closeManage()">Cancel</button>
+          <button class="danger" @click="removeCategory()">Delete Category</button>
         </div>
       </div>
     </div>
@@ -80,7 +79,7 @@ export default {
       currentSection: null,
       currentCategory: null,
       manageItems: [],
-      newSubItem: { name: '', qty: '', section: '' },
+      newSubItem: { name: '', qty: '', section: '', daysLeft: '' },
     }
   },
   methods: {
@@ -88,16 +87,33 @@ export default {
       this.currentSection = section
       this.currentCategory = category
       // 원본 아이템 배열 복사
-      this.manageItems = category.items.map((i) => ({ ...i }))
+      this.manageItems = category.items.map((item) => ({ ...item }))
       this.showManage = true
     },
 
     // 저장
     saveManage() {
-      // 배열에 덮어쓰기
-      this.currentCategory.items = this.manageItems.map((i) => ({ ...i }))
-      this.currentCategory.count = this.manageItems.length
-      this.closeManage()
+      const section = this.storageSections.find((s) => s.name === this.currentSection.name)
+      if (!section) return alert('섹션을 찾을 수 없습니다.')
+
+      const category = section.categories.find((c) => c.name === this.currentCategory.name)
+      if (!category) return alert('카테고리를 찾을 수 없습니다.')
+
+      category.items = this.manageItems.map((item) => {
+        let expiry = item.expiry
+
+        if (item.expiryDays && !isNaN(item.expiryDays)) {
+          const date = new Date()
+          date.setDate(date.getDate() + parseInt(item.expiryDays))
+          expiry = date.toISOString().split('T')[0]
+        }
+
+        return {
+          name: item.name,
+          qty: item.qty,
+          expiry,
+        }
+      })
     },
 
     // 취소
@@ -113,13 +129,28 @@ export default {
     removeItem(index) {
       this.manageItems.splice(index, 1)
     },
+    removeCategory() {
+      if (!confirm(`정말로 카테고리 "${this.currentCategory.name}"를 삭제할까요?`)) return
+
+      const section = this.storageSections.find((sec) => sec.name === this.currentSection.name)
+      if (section) {
+        section.categories = section.categories.filter(
+          (cat) => cat.name !== this.currentCategory.name,
+        )
+      }
+      this.showManage = false
+      this.currentCategory = null
+      this.currentSection = null
+    },
 
     // 아이템 추가
     addSubItem() {
-      const { name, qty, section } = this.newSubItem
-      if (!name || !qty || !section) return alert('모든 항목을 입력하세요.')
-      const targetSection = this.storageSections.find((s) => s.name === section)
+      const { name, qty, daysLeft } = this.newSubItem
+      if (!name || !qty) return alert('이름, 수량 항목을 입력하세요.')
+
+      const targetSection = this.storageSections.find((s) => s.name === this.currentSection.name)
       if (!targetSection) return alert('해당 섹션을 찾을 수 없습니다.')
+
       let targetCategory = targetSection.categories.find(
         (c) => c.name === this.currentCategory.name,
       )
@@ -131,10 +162,29 @@ export default {
         }
         targetSection.categories.push(targetCategory)
       }
-      targetCategory.items.push({ name, qty })
+      let expiry = ''
+      if (daysLeft && !isNaN(daysLeft)) {
+        const today = new Date()
+        today.setDate(today.getDate() + parseInt(daysLeft))
+        expiry = today.toISOString().split('T')[0]
+      }
+
+      targetCategory.items.push({ name, qty, expiry })
       targetCategory.count = targetCategory.items.length
 
-      this.newSubItem = { name: '', qty: '', section: '' }
+      this.manageItems.push({
+        name,
+        qty,
+        expiry,
+      })
+
+      this.newSubItem = { name: '', qty: '', section: '', datLeft: '' }
+    },
+
+    formatExpiry(days) {
+      if (!days || isNaN(days)) return ''
+      const date = new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+      return date.toISOString().split('T')[0]
     },
   },
 }
@@ -241,5 +291,13 @@ export default {
 }
 .modal-actions button {
   margin-left: 0.5rem;
+}
+.danger {
+  background: #d9534f;
+  color: white;
+  border: none;
+}
+.danger:hover {
+  background: #c9302c;
 }
 </style>
