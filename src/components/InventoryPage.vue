@@ -67,6 +67,9 @@ export default {
       storageSections,
       activity: useActivityStore(),
 
+      inventories: [],
+      newInventoryName: '',
+
       categoryOptions: ['All', 'Dairy', 'Vegetables', 'Meat', 'Pantry', 'Ice Cream', 'Peas'],
       stockStatusOptions: ['All', 'Low Stock', 'In Stock'],
       expiryStatusOptions: ['All', 'Expiring Soon', 'Expired', 'Fresh'],
@@ -79,6 +82,27 @@ export default {
     }
   },
   methods: {
+    async fetchInventories() {
+      try {
+        const res = await this.$api.get('/inventories')
+        this.inventories = res.data
+      } catch (err) {
+        console.error('냉장고 목록 불러오기 실패:', err)
+      }
+    },
+    async createInventory() {
+      if (!this.newInventoryName) return alert('이름을 입력하세요')
+      try {
+        const res = await this.$api.post('/inventories', {
+          name: this.newInventoryName,
+        })
+        this.inventories.push(res.data)
+        this.newInventoryName = ''
+      } catch (err) {
+        console.error('생성 실패:', err)
+      }
+    },
+
     openManage(section, category) {
       this.currentSection = section
       this.currentCategory = category
@@ -190,6 +214,9 @@ export default {
       const date = new Date(Date.now() + days * 24 * 60 * 60 * 1000)
       return date.toISOString().split('T')[0]
     },
+  },
+  mounted() {
+    this.fetchInventories()
   },
 }
 </script>

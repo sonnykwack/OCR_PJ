@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard">
     <main>
-      <!-- 카드 영역 -->
+      <!--카드 영역 -->
       <section class="cards">
         <div class="card expiring">
           <h3>Items Expiring Soon</h3>

@@ -37,12 +37,18 @@
       </form>
 
       <div class="divider"><span>Or continue with</span></div>
-      <button class="kakao-btn">Sign in with KakaoTalk</button>
+
+      <button @click="kakaoLogin">
+        <img src="@/assets/kakao-icon.png" alt="Kakao icon" class="kakao-icon" />
+        Sign in with KakaoTalk
+      </button>
     </div>
   </div>
 </template>
 
 <script>
+import api from '@/lib/api'
+
 export default {
   name: 'LoginPage',
   data() {
@@ -53,10 +59,29 @@ export default {
     }
   },
   methods: {
-    login() {
-      // 여기에 실제 인증 구현하시면 추가해주세요
-      console.log('로그인 시도:', this.email, this.password, this.remember)
+    kakaoLogin() {
+      const REST_API_KEY = '7bab93bebb2263ccc8ddcd817fca9a8f'
+      const REDIRECT_URI = 'http://localhost:5173/oauth/kakao/callback'
+      const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${REST_API_KEY}&redirect_uri=${REDIRECT_URI}&response_type=code`
+      window.location.href = kakaoAuthUrl
+    },
+    async login() {
+      localStorage.setItem('token', 'dev-fake-token')
       this.$router.push('/home')
+      try {
+        const response = await api.post('/login', {
+          email: this.email,
+          password: this.password,
+        })
+
+        const token = response.data.token
+        localStorage.setItem('token', token)
+
+        this.$router.push('/home')
+      } catch (err) {
+        console.error(err)
+        alert('로그인 실패. 이메일 또는 비밀번호를 확인하세요.')
+      }
     },
   },
 }
@@ -191,8 +216,18 @@ form input {
   width: 100%;
   padding: 0.75rem;
   border: 1px solid #ccc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.5rem 1rem;
+  background-color: #fee500;
+  border: none;
   border-radius: 4px;
-  background-color: #fff;
+  font-weight: bold;
   cursor: pointer;
+}
+.kakao-icon {
+  width: 20px;
+  height: 20px;
 }
 </style>
