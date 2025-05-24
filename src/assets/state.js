@@ -1,5 +1,6 @@
 import { reactive } from 'vue'
 
+export const activityLog = reactive([])
 export const storageSections = reactive([
   {
     name: 'Refrigerated',
@@ -15,7 +16,7 @@ export const storageSections = reactive([
       {
         name: 'Vegetables',
         items: [
-          { name: 'Tomatoes', qty: '1kg', expiry: '2025-06-12' },
+          { name: 'Tomatoes', qty: '100g', expiry: '2025-06-12' },
           { name: 'Lettuce', qty: '2 heads', expiry: '2025-06-13' },
         ],
         count: 2,

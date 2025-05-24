@@ -1,29 +1,44 @@
 <template>
   <div class="account-page">
-    <h1>Account Management</h1>
-    <p class="subtitle">Manage your account settings and preferences</p>
+    <h1>{{ $t('account.title') }}</h1>
+    <p class="subtitle">{{ $t('account.subtitle') }}</p>
 
     <div class="account-container">
       <section class="panel personal-info">
-        <h2>Personal Information</h2>
+        <h2>{{ $t('account.personalInfo') }}</h2>
         <div class="fields">
           <div class="field-group">
-            <label for="name">Full Name</label>
-            <input id="name" type="text" placeholder="Your name" v-model="user.name" />
+            <label for="name">{{ $t('account.name') }}</label>
+            <input
+              id="name"
+              type="text"
+              :placeholder="$t('account.namePlaceholder')"
+              v-model="user.name"
+            />
           </div>
           <div class="field-group">
-            <label for="email">Email</label>
-            <input id="email" type="email" placeholder="you@example.com" v-model="user.email" />
+            <label for="email">{{ $t('account.email') }}</label>
+            <input
+              id="email"
+              type="email"
+              :placeholder="$t('account.emailPlaceholder')"
+              v-model="user.email"
+            />
           </div>
           <div class="field-group">
-            <label for="phone">Phone Number</label>
-            <input id="phone" type="text" placeholder="+1 234 567 890" v-model="user.phone" />
+            <label for="phone">{{ $t('account.phone') }}</label>
+            <input
+              id="phone"
+              type="text"
+              :placeholder="$t('account.phonePlaceholder')"
+              v-model="user.phone"
+            />
           </div>
           <div class="field-group">
-            <label for="lang">Language</label>
-            <select id="lang" v-model="user.language">
-              <option>English</option>
-              <option>Korean</option>
+            <label for="lang">{{ $t('account.language') }}</label>
+            <select v-model="user.language">
+              <option value="en">{{ $t('account.english') }}</option>
+              <option value="ko">{{ $t('account.korean') }}</option>
             </select>
           </div>
         </div>
@@ -31,7 +46,7 @@
 
       <!-- 계정 연동 -->
       <section class="panel connect-accounts">
-        <h2>Connect Accounts</h2>
+        <h2>{{ $t('account.connectAccounts') }}</h2>
         <button class="connect-btn">
           <img src="@/assets/google-icon.png" alt="Google" /> Connect with Google
         </button>
@@ -45,7 +60,7 @@
 
       <!-- 비번 -->
       <section class="panel security">
-        <h2>Password & Security</h2>
+        <h2>{{ $t('account.security') }}</h2>
         <ul class="sec-list">
           <li @click="changePassword">Change Password ➔</li>
           <li @click="setup2FA">Two-Factor Authentication ➔</li>
@@ -54,17 +69,17 @@
 
       <!-- 수신 -->
       <section class="panel preferences">
-        <h2>Preferences</h2>
+        <h2>{{ $t('account.preferences') }}</h2>
         <div class="preference-option">
           <label>
             <input type="checkbox" v-model="prefs.emailNotifs" />
-            <span>Email Notifications</span>
+            <span>{{ $t('account.emailNotifs') }}</span>
           </label>
         </div>
         <div class="preference-option">
           <label>
             <input type="checkbox" v-model="prefs.smsNotifs" />
-            <span>SMS Notifications</span>
+            <span>{{ $t('account.smsNotifs') }}</span>
           </label>
         </div>
       </section>
@@ -104,11 +119,17 @@ export default {
     },
     saveAll() {
       // 여기에 저장 로직 추가해주세여
-      alert('Your changes have been saved.')
+      this.$i18n.locale = this.user.language
+      alert('변경사항이 저장되었습니다.')
     },
     resetAll() {
       this.user = { fullName: '', email: '', phone: '', language: 'English' }
       this.prefs = { emailNotifs: true, smsNotifs: false }
+    },
+    watch: {
+      'user.language'(newLang) {
+        this.$i18n.locale = newLang
+      },
     },
   },
 }

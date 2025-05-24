@@ -58,19 +58,15 @@
 
 <script>
 import { storageSections } from '@/assets/state.js'
+import { useActivityStore } from '@/stores/activity'
 
 export default {
   name: 'InventoryPage',
   data() {
     return {
       storageSections,
+      activity: useActivityStore(),
 
-      filters: {
-        category: 'All',
-        stockStatus: 'All',
-        expiryStatus: 'All',
-        sortBy: 'None',
-      },
       categoryOptions: ['All', 'Dairy', 'Vegetables', 'Meat', 'Pantry', 'Ice Cream', 'Peas'],
       stockStatusOptions: ['All', 'Low Stock', 'In Stock'],
       expiryStatusOptions: ['All', 'Expiring Soon', 'Expired', 'Fresh'],
@@ -87,33 +83,39 @@ export default {
       this.currentSection = section
       this.currentCategory = category
       // 원본 아이템 배열 복사
-      this.manageItems = category.items.map((item) => ({ ...item }))
+      this.manageItems = category.items.map((i) => ({
+        name: i.name,
+        qty: i.qty,
+        expiry: i.expiry,
+        expiryDays: null,
+      }))
+      this.newSubItem = { name: '', qty: '', daysLeft: '' }
       this.showManage = true
     },
 
     // 저장
     saveManage() {
-      const section = this.storageSections.find((s) => s.name === this.currentSection.name)
-      if (!section) return alert('섹션을 찾을 수 없습니다.')
+      // 1) 원본 섹션/카테고리
+      const sec = this.storageSections.find((s) => s.name === this.currentSection.name)
+      const cat = sec && sec.categories.find((c) => c.name === this.currentCategory.name)
+      if (!sec || !cat) return alert('섹션/카테고리를 찾을 수 없습니다.')
 
-      const category = section.categories.find((c) => c.name === this.currentCategory.name)
-      if (!category) return alert('카테고리를 찾을 수 없습니다.')
-
-      category.items = this.manageItems.map((item) => {
+      // 2) 원본으로 덮어쓰기
+      cat.items = this.manageItems.map((item) => {
         let expiry = item.expiry
-
-        if (item.expiryDays && !isNaN(item.expiryDays)) {
-          const date = new Date()
-          date.setDate(date.getDate() + parseInt(item.expiryDays))
-          expiry = date.toISOString().split('T')[0]
+        if (item.expiryDays != null && !isNaN(item.expiryDays)) {
+          const d = new Date()
+          d.setDate(d.getDate() + parseInt(item.expiryDays))
+          expiry = d.toISOString().split('T')[0]
         }
-
-        return {
-          name: item.name,
-          qty: item.qty,
-          expiry,
-        }
+        return { name: item.name, qty: item.qty, expiry }
       })
+
+      // 3) 개수 갱신
+      cat.count = cat.items.length
+
+      // 4) modal 닫기
+      this.closeManage()
     },
 
     // 취소
@@ -122,25 +124,27 @@ export default {
       this.currentSection = null
       this.currentCategory = null
       this.manageItems = []
-      this.newSubItem = { name: '', qty: '' }
+      this.newSubItem = { name: '', qty: '', daysLeft: '' }
     },
 
     // 삭제
     removeItem(index) {
+      const removedItem = this.manageItems[index]
       this.manageItems.splice(index, 1)
+
+      if (removedItem) {
+        this.activity.recentLogs.unshift({
+          type: 'remove',
+          message: `Removed ${removedItem.qty} ${removedItem.name}`,
+          timestamp: new Date(),
+        })
+      }
     },
     removeCategory() {
-      if (!confirm(`정말로 카테고리 "${this.currentCategory.name}"를 삭제할까요?`)) return
-
-      const section = this.storageSections.find((sec) => sec.name === this.currentSection.name)
-      if (section) {
-        section.categories = section.categories.filter(
-          (cat) => cat.name !== this.currentCategory.name,
-        )
-      }
-      this.showManage = false
-      this.currentCategory = null
-      this.currentSection = null
+      if (!confirm(`정말 "${this.currentCategory.name}" 카테고리를 삭제할까요?`)) return
+      const sec = this.storageSections.find((s) => s.name === this.currentSection.name)
+      sec.categories = sec.categories.filter((c) => c.name !== this.currentCategory.name)
+      this.closeManage()
     },
 
     // 아이템 추가
@@ -162,6 +166,7 @@ export default {
         }
         targetSection.categories.push(targetCategory)
       }
+
       let expiry = ''
       if (daysLeft && !isNaN(daysLeft)) {
         const today = new Date()
@@ -169,16 +174,15 @@ export default {
         expiry = today.toISOString().split('T')[0]
       }
 
-      targetCategory.items.push({ name, qty, expiry })
-      targetCategory.count = targetCategory.items.length
-
-      this.manageItems.push({
-        name,
-        qty,
-        expiry,
+      this.activity.recentLogs.unshift({
+        type: 'add',
+        message: `Added ${qty} ${name}`,
+        timestamp: new Date(),
       })
 
-      this.newSubItem = { name: '', qty: '', section: '', datLeft: '' }
+      this.manageItems.push({ name, qty, expiry })
+
+      this.newSubItem = { name: '', qty: '', section: '', daysLeft: '' }
     },
 
     formatExpiry(days) {

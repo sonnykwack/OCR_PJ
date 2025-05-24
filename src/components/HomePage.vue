@@ -91,11 +91,11 @@
         <div class="recent-activity">
           <h3>Recent Activity</h3>
           <ul>
-            <li v-for="act in recentActivity" :key="act.id">
-              <span v-if="act.type === 'add'">➕</span>
-              <span v-else-if="act.type === 'remove'">➖</span>
-              <span v-else>🔄</span>
-              {{ act.message }} <small>– {{ act.time }}</small>
+            <li v-for="(log, idx) in activity.recentLogs" :key="log.id || idx">
+              <span v-if="log.type === 'add'">➕</span>
+              <span v-else-if="log.type === 'remove'">➖</span>
+              {{ log.message }}
+              <small>– {{ timeAgo(log.timestamp) }}</small>
             </li>
           </ul>
         </div>
@@ -106,6 +106,7 @@
 
 <script>
 import { storageSections } from '@/assets/state.js'
+import { useActivityStore } from '@/stores/activity'
 
 export default {
   name: 'HomePage',
@@ -127,7 +128,7 @@ export default {
         { name: 'Greek Salad', matchPercent: 100 },
       ],
       recentActivity: [
-        { id: 1, type: 'add', message: 'Added 2L Milk', time: '2 hours ago' },
+        { id: 1, type: 'add', message: 'Added 1L Milk', time: '2 hours ago' },
         { id: 2, type: 'remove', message: 'Removed Expired Yogurt', time: '5 hours ago' },
         { id: 3, type: 'update', message: 'Updated Shopping List', time: 'Yesterday' },
       ],
@@ -138,6 +139,11 @@ export default {
       ],
     }
   },
+  setup() {
+    const activity = useActivityStore()
+    return { activity }
+  },
+
   methods: {
     openAddForm() {
       this.showAddForm = true
@@ -185,12 +191,20 @@ export default {
         cat.items.push({ name, qty: `${capacity} x ${qty}`, expiry })
         cat.count = cat.items.length
       }
+
       const now = new Date()
       this.recentActivity.unshift({
         id: Date.now(),
         type: 'add',
         message: `Added ${capacity} ${name}`,
         time: this.timeAgo(now),
+      })
+
+      this.activity.recentLogs.unshift({
+        id: Date.now(),
+        type: 'add',
+        message: `Added ${capacity} ${name}`,
+        timestamp: new Date(),
       })
 
       this.newItem = { section: '', category: '', name: '', capacity: '', qty: 1, daysLeft: null }
