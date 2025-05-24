@@ -30,7 +30,7 @@
         </li>
         <li>
           <strong>Supermarket Receipt</strong><br />
-          <small>Scanned 5 day ago</small>
+          <small>Scanned 1 day ago</small>
           <a href="#">View Details</a>
         </li>
       </ul>

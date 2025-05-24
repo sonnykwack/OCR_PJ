@@ -21,7 +21,8 @@ export default {
           <li><router-link to="/home">Dashboard</router-link></li>
           <li><router-link to="/inventory">Inventory</router-link></li>
           <li><router-link to="/receipt">Receipt</router-link></li>
-          <li><router-link to="/account">Account</router-link></li>
+          <li><router-link to="/shopping-list">Shopping List</router-link></li>
+          <li><router-link to="/recipes">Recipe</router-link></li>
         </ul>
       </div>
 

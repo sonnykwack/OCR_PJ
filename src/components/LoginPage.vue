@@ -38,7 +38,7 @@
       </form>
 
       <div class="divider"><span>Or continue with</span></div>
-      <button class="kakao-btn">Sign in with KakaoTalk</button>
+      <button class="google-btn">Sign in with Google</button>
     </div>
   </div>
 </template>
@@ -188,7 +188,7 @@ form input {
   color: #888;
 }
 
-.kakao-btn {
+.google-btn {
   width: 100%;
   padding: 0.75rem;
   border: 1px solid #ccc;
