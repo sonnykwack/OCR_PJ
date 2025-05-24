@@ -2,7 +2,7 @@
   <div class="login-page">
     <!-- 왼쪽 패널: 이미지 + 설명 -->
     <div class="left-panel">
-      <img src="@/assets/냉장고(2).png" alt="Fridge Illustration" />
+      <img src="@/assets/fridge.png" alt="Fridge Illustration" />
       <h2>Manage Your Fridge Smarter</h2>
       <p>
         Track your groceries, reduce food waste, and discover recipes – all in one place. Our
@@ -35,10 +35,8 @@
 
         <button type="submit" class="signin-btn">Sign in</button>
       </form>
-
       <div class="divider"><span>Or continue with</span></div>
-
-      <button @click="kakaoLogin">
+      <button @click="kakaoLogin" class="kakao-btn">
         <img src="@/assets/kakao-icon.png" alt="Kakao icon" class="kakao-icon" />
         Sign in with KakaoTalk
       </button>
@@ -226,6 +224,7 @@ form input {
   font-weight: bold;
   cursor: pointer;
 }
+
 .kakao-icon {
   width: 20px;
   height: 20px;

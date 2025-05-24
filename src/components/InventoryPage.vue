@@ -59,6 +59,7 @@
 <script>
 import { storageSections } from '@/assets/state.js'
 import { useActivityStore } from '@/stores/activity'
+import api from '@/api'
 
 export default {
   name: 'InventoryPage',

@@ -85,7 +85,16 @@
       <section class="overview">
         <div class="inventory-overview">
           <h3>Inventory Overview</h3>
-          <div class="chart">Graph Placeholder</div>
+          <div class="donut-container">
+            <div class="donut-box">
+              <h4>Refrigerated</h4>
+              <Doughnut :data="refrigeratedChartData" :options="chartOptions('Refrigerated')" />
+            </div>
+            <div class="donut-box">
+              <h4>Frozen</h4>
+              <Doughnut :data="frozenChartData" :options="chartOptions('Frozen')" />
+            </div>
+          </div>
         </div>
 
         <div class="recent-activity">
@@ -107,9 +116,15 @@
 <script>
 import { storageSections } from '@/assets/state.js'
 import { useActivityStore } from '@/stores/activity'
+import { Doughnut } from 'vue-chartjs'
+import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, CategoryScale } from 'chart.js'
+ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale)
 
 export default {
   name: 'HomePage',
+  components: {
+    Doughnut,
+  },
   data() {
     return {
       showAddForm: false,
@@ -127,6 +142,13 @@ export default {
         { name: 'Pasta Primavera', matchPercent: 80 },
         { name: 'Greek Salad', matchPercent: 100 },
       ],
+      recipes: [
+        { recipe_id: 1, title: '계란 볶음밥' },
+        { recipe_id: 2, title: '양배추 샐러드' },
+        { recipe_id: 3, title: '두부 파스타' },
+        { recipe_id: 4, title: '감자조림' },
+      ],
+
       recentActivity: [
         { id: 1, type: 'add', message: 'Added 1L Milk', time: '2 hours ago' },
         { id: 2, type: 'remove', message: 'Removed Expired Yogurt', time: '5 hours ago' },
@@ -210,8 +232,75 @@ export default {
       this.newItem = { section: '', category: '', name: '', capacity: '', qty: 1, daysLeft: null }
       this.showAddForm = false
     },
+    chartOptions(storageName) {
+      const target = this.storageSections.find((s) => s.name === storageName) || { categories: [] }
+      const itemMap = {}
+      target.categories.forEach((cat) => {
+        itemMap[cat.name] = cat.items.map((item) => ({
+          name: item.name,
+          qty: item.qty,
+          expiry: item.expiry || 'N/A',
+        }))
+      })
+      return {
+        responsive: true,
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                const label = context.label
+                const items = itemMap[label] || []
+                if (items.length === 0) return `${label}: 항목 없음`
+                return [`${label}:`, ...items.map((i) => `${i.name} - ${i.qty}개 - ${i.expiry}`)]
+              },
+            },
+          },
+        },
+      }
+    },
   },
   computed: {
+    topRecipes() {
+      return this.recipes.slice(0, 3)
+    },
+    refrigeratedChartData() {
+      const refrigerated = this.storageSections.find((s) => s.name === 'Refrigerated') || {
+        categories: [],
+      }
+      const categoryCounts = {}
+      refrigerated.categories.forEach((cat) => {
+        categoryCounts[cat.name] = cat.items.length
+      })
+      return {
+        labels: Object.keys(categoryCounts),
+        datasets: [
+          {
+            label: '냉장',
+            data: Object.values(categoryCounts),
+            backgroundColor: ['#42A5F5', '#66BB6A', '#FFA726', '#AB47BC', '#FF7043'],
+            borderWidth: 1,
+          },
+        ],
+      }
+    },
+    frozenChartData() {
+      const frozen = this.storageSections.find((s) => s.name === 'Frozen') || { categories: [] }
+      const categoryCounts = {}
+      frozen.categories.forEach((cat) => {
+        categoryCounts[cat.name] = cat.items.length
+      })
+      return {
+        labels: Object.keys(categoryCounts),
+        datasets: [
+          {
+            label: '냉동',
+            data: Object.values(categoryCounts),
+            backgroundColor: ['#4DD0E1', '#FFB74D', '#AED581', '#BA68C8', '#E57373'],
+            borderWidth: 1,
+          },
+        ],
+      }
+    },
     expiringItemsSorted() {
       const items = []
 
@@ -445,7 +534,26 @@ main {
   display: flex;
   gap: 1.5rem;
 }
-.inventory-overview,
+.donut-container {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2rem;
+  padding: 1rem 0;
+}
+.donut-box {
+  flex: 1 1 200px;
+  max-width: 300px;
+  text-align: center;
+}
+.inventory-overview {
+  background: #fff;
+  padding: 1rem;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
 .recent-activity {
   background: #fff;
   padding: 1rem;

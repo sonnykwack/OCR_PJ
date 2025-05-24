@@ -3,7 +3,8 @@ import LoginPage from '../components/LoginPage.vue' // 로그린 페이지
 import HomePage from '../components/HomePage.vue' // 홈 페이지
 import ReceiptPage from '../components/ReceiptPage.vue' // 영수증 업로드
 import InventoryPage from '../components/InventoryPage.vue' //목록
-import AccountPage from '@/components/AccountPage.vue' // 유저 정보
+import AccountPage from '../components/AccountPage.vue' // 유저 정보
+import RecomPage from '../components/RecomPage.vue' //메뉴 추천 페이지
 
 const routes = [
   { path: '/', component: LoginPage },
@@ -11,11 +12,14 @@ const routes = [
   { path: '/receipt', component: ReceiptPage },
   { path: '/inventory', component: InventoryPage },
   { path: '/account', component: AccountPage },
+
   {
     path: '/oauth/kakao/callback',
     name: 'KakaoCallback',
     component: () => import('@/pages/KakaoCallback.vue'),
   },
+
+  { path: '/recipes', component: RecomPage },
 ]
 
 const router = createRouter({
