@@ -2,8 +2,7 @@
   <div class="login-page">
     <!-- 왼쪽 패널: 이미지 + 설명 -->
     <div class="left-panel">
-      <img src="@/assets/냉장고.png" alt="Fridge Illustration" />
-      <!--임시 이미지입니다-->
+      <img src="@/assets/냉장고(2).png" alt="Fridge Illustration" />
       <h2>Manage Your Fridge Smarter</h2>
       <p>
         Track your groceries, reduce food waste, and discover recipes – all in one place. Our
