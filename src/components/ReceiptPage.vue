@@ -11,13 +11,6 @@
         <button>Browse Files</button>
         <p class="hint">Supports JPG, PNG, PDF up to 10MB</p>
       </div>
-
-      <div class="upload-box">
-        <h3>Take Photo</h3>
-        <div class="camera-zone">Use your device camera</div>
-        <button>Open Camera</button>
-        <p class="hint">Make sure the receipt is well-lit and clear</p>
-      </div>
     </div>
 
     <div class="recent">

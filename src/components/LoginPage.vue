@@ -38,7 +38,10 @@
       </form>
 
       <div class="divider"><span>Or continue with</span></div>
-      <button class="kakao-btn">Sign in with KakaoTalk</button>
+      <button class="kakao-btn">
+        <img src="@/assets/kakao-icon.png" alt="Kakao icon" class="kakao-icon" />
+        Sign in with KakaoTalk
+      </button>
     </div>
   </div>
 </template>
@@ -189,11 +192,19 @@ form input {
 }
 
 .kakao-btn {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ccc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.5rem 1rem;
+  background-color: #fee500;
+  border: none;
   border-radius: 4px;
-  background-color: #fff;
+  font-weight: bold;
   cursor: pointer;
+}
+
+.kakao-icon {
+  width: 20px;
+  height: 20px;
 }
 </style>
