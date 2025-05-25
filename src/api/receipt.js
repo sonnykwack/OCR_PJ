@@ -14,3 +14,8 @@ export const uploadReceipt = (formData) => {
 export const saveParsedItems = (parsedItems) => {
   return api.post('/parseditem/save', parsedItems)
 }
+
+// ✅ 최근 업로드된 영수증 목록 불러오기
+export const getRecentReceipts = () => {
+  return api.get('/receipt/recent')
+}

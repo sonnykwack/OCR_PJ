@@ -4,35 +4,21 @@
     <p class="subtitle">{{ $t('account.subtitle') }}</p>
 
     <div class="account-container">
+      <!-- 개인 정보 -->
       <section class="panel personal-info">
         <h2>{{ $t('account.personalInfo') }}</h2>
         <div class="fields">
           <div class="field-group">
             <label for="name">{{ $t('account.name') }}</label>
-            <input
-              id="name"
-              type="text"
-              :placeholder="$t('account.namePlaceholder')"
-              v-model="user.name"
-            />
+            <input id="name" type="text" v-model="user.name" />
           </div>
           <div class="field-group">
             <label for="email">{{ $t('account.email') }}</label>
-            <input
-              id="email"
-              type="email"
-              :placeholder="$t('account.emailPlaceholder')"
-              v-model="user.email"
-            />
+            <input id="email" type="email" v-model="user.email" disabled />
           </div>
           <div class="field-group">
             <label for="phone">{{ $t('account.phone') }}</label>
-            <input
-              id="phone"
-              type="text"
-              :placeholder="$t('account.phonePlaceholder')"
-              v-model="user.phone"
-            />
+            <input id="phone" type="text" v-model="user.phone" />
           </div>
           <div class="field-group">
             <label for="lang">{{ $t('account.language') }}</label>
@@ -58,16 +44,16 @@
         </button>
       </section>
 
-      <!-- 비번 -->
+      <!-- 보안 설정 -->
       <section class="panel security">
         <h2>{{ $t('account.security') }}</h2>
         <ul class="sec-list">
-          <li @click="changePassword">Change Password ➔</li>
+          <li @click="showPasswordModal = true">Change Password ➔</li>
           <li @click="setup2FA">Two-Factor Authentication ➔</li>
         </ul>
       </section>
 
-      <!-- 수신 -->
+      <!-- 알림 설정 -->
       <section class="panel preferences">
         <h2>{{ $t('account.preferences') }}</h2>
         <div class="preference-option">
@@ -85,51 +71,89 @@
       </section>
     </div>
 
-    <!-- 저장 -->
+    <!-- 저장/취소 버튼 -->
     <div class="actions">
       <button class="btn save" @click="saveAll">Save Changes</button>
       <button class="btn cancel" @click="resetAll">Cancel</button>
+    </div>
+
+    <!-- 비밀번호 변경 모달 -->
+    <div v-if="showPasswordModal" class="modal">
+      <div class="modal-box">
+        <h3>Change Password</h3>
+        <div class="field-group">
+          <label>New Password</label>
+          <input type="password" v-model="passwordForm.newPassword" />
+        </div>
+        <div class="field-group">
+          <label>Confirm Password</label>
+          <input type="password" v-model="passwordForm.confirmPassword" />
+        </div>
+        <div class="modal-actions">
+          <button @click="submitPasswordChange">Submit</button>
+          <button @click="showPasswordModal = false">Cancel</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
+import { updatePassword } from '@/api/user'
+
 export default {
   name: 'AccountPage',
   data() {
     return {
       user: {
-        fullName: '',
+        name: '',
         email: '',
         phone: '',
-        language: 'English',
+        language: 'en',
       },
       prefs: {
         emailNotifs: true,
         smsNotifs: false,
       },
+      showPasswordModal: false,
+      passwordForm: {
+        newPassword: '',
+        confirmPassword: '',
+      },
     }
   },
   methods: {
-    changePassword() {
-      alert('Navigate to change-password flow')
-    },
     setup2FA() {
       alert('Navigate to two-factor setup')
     },
     saveAll() {
-      // 여기에 저장 로직 추가해주세여
       this.$i18n.locale = this.user.language
       alert('변경사항이 저장되었습니다.')
     },
     resetAll() {
-      this.user = { fullName: '', email: '', phone: '', language: 'English' }
+      this.user = { name: '', email: '', phone: '', language: 'en' }
       this.prefs = { emailNotifs: true, smsNotifs: false }
     },
-    watch: {
-      'user.language'(newLang) {
-        this.$i18n.locale = newLang
-      },
+    async submitPasswordChange() {
+      const { newPassword, confirmPassword } = this.passwordForm
+      if (!newPassword || newPassword !== confirmPassword) {
+        alert('Passwords do not match.')
+        return
+      }
+      try {
+        await updatePassword(1, newPassword) // 사용자 ID는 실제 로직에 맞게 조정
+        alert('Password updated successfully.')
+        this.showPasswordModal = false
+        this.passwordForm = { newPassword: '', confirmPassword: '' }
+      } catch (err) {
+        console.error('Password update failed:', err)
+        alert('Error updating password.')
+      }
+    },
+  },
+  watch: {
+    'user.language'(newLang) {
+      this.$i18n.locale = newLang
     },
   },
 }
@@ -183,7 +207,6 @@ export default {
 .preference-option {
   margin-bottom: 0.75rem;
 }
-
 .connect-accounts .connect-btn {
   display: flex;
   align-items: center;
@@ -225,5 +248,34 @@ export default {
 .btn.cancel {
   background: #777;
   color: #fff;
+}
+
+/* 모달 스타일 */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal-box {
+  background: white;
+  padding: 2rem;
+  border-radius: 10px;
+  width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
 }
 </style>

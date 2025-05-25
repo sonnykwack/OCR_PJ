@@ -6,7 +6,7 @@
     "name": "이름",
     "namePlaceholder": "이름을 입력하세요",
     "email": "이메일",
-    "emailPlaceholder": "you@example.com",
+    "emailPlaceholder": "이메일 주소",
     "phone": "전화번호",
     "phonePlaceholder": "+82 10 1234 5678",
     "language": "언어",
