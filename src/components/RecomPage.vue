@@ -5,13 +5,10 @@
       You can get recommendations according to your stock right here, right now!
     </p>
 
-    <!-- 추천 요청 버튼 -->
-    <button class="manage-btn mb-4" @click="generateAndSaveRecipe">🔍 Get Recipes!</button>
+    <button class="manage-btn mb-4" @click="fetchRecommendedRecipes">🔍 Get Recipes!</button>
 
-    <!-- 로딩 표시 -->
     <div v-if="loading" class="text-gray-500">Calling Recipes...</div>
 
-    <!-- 추천된 레시피 리스트 -->
     <ul class="recipe-list" v-if="!loading && recipes.length > 0">
       <li
         v-for="recipe in recipes"
@@ -24,10 +21,8 @@
       </li>
     </ul>
 
-    <!-- 추천이 없는 경우 -->
     <div v-else-if="!loading" class="text-gray-500">No Recommendations.</div>
 
-    <!-- 레시피 상세 보기 모달 -->
     <div v-if="selectedRecipe" class="manage-modal" @click.self="selectedRecipe = null">
       <div class="modal-content">
         <h2 class="text-xl font-bold mb-2">{{ selectedRecipe.title }}</h2>
@@ -47,75 +42,43 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { getRecommendedRecipes, getRecipeById } from '@/api/recipe'
+
 const loading = ref(false)
 const recipes = ref<any[]>([])
 const selectedRecipe = ref<any | null>(null)
-const INVENTORY_ID = 1
-const AI_RECIPE_API = '/ai/recipe-generate' // 실제 AI 백엔드가 있다면 이 엔드포인트 사용
-// ✅ 예제용 초기 더미 레시피 3개
-const dummyRecipes = [
-  {
-    recipe_id: 101,
-    title: '계란 볶음밥',
-    created_at: '2025-05-01T12:00:00',
-    content: '1. 계란을 풀고\n2. 밥과 함께 볶아줍니다',
-    source_items: [
-      { item_id: 1, item_name: '계란' },
-      { item_id: 2, item_name: '밥' },
-    ],
-  },
-  {
-    recipe_id: 102,
-    title: '우유 토스트',
-    created_at: '2025-05-02T09:30:00',
-    content: '1. 식빵을 우유에 적시고\n2. 팬에 구워주세요',
-    source_items: [
-      { item_id: 3, item_name: '식빵' },
-      { item_id: 4, item_name: '우유' },
-    ],
-  },
-  {
-    recipe_id: 103,
-    title: '당근 샐러드',
-    created_at: '2025-05-03T10:10:00',
-    content: '1. 당근을 얇게 썰고\n2. 드레싱과 함께 섞어요',
-    source_items: [{ item_id: 5, item_name: '당근' }],
-  },
-]
-// ✅ 페이지 로딩 시 실행
-onMounted(() => {
-  // 실제 환경에서는 아래 함수로 API에서 가져옵니다
-  // fetchSavedRecipes()
-  recipes.value = dummyRecipes // ← 지금은 예제 더미 데이터 사용
-})
-// ✅ 상세보기 클릭 시 레시피 1개를 가져옴 (지금은 더미에서 찾음)
-async function openRecipe(recipeId: number) {
-  // 실제 환경에서는 아래처럼 API에서 불러옴
-  // const res = await fetch(`/api/recipes/${recipeId}`)
-  // selectedRecipe.value = await res.json()
-  selectedRecipe.value = dummyRecipes.find((r) => r.recipe_id === recipeId) || null
+
+// ✅ 로그인 연결 전까지는 userId 하드코딩
+const userId = 1
+
+// ✅ 레시피 목록 불러오기
+async function fetchRecommendedRecipes() {
+  loading.value = true
+  try {
+    const res = await getRecommendedRecipes(userId)
+    recipes.value = res.data
+  } catch (e) {
+    console.error('추천 레시피 불러오기 실패:', e)
+  } finally {
+    loading.value = false
+  }
 }
+
+// ✅ 레시피 상세 보기
+async function openRecipe(recipeId: number) {
+  try {
+    const res = await getRecipeById(recipeId)
+    selectedRecipe.value = res.data
+  } catch (e) {
+    console.error('레시피 상세 불러오기 실패:', e)
+  }
+}
+
 // ✅ 날짜 포맷
 function formatDate(dateString: string) {
   const d = new Date(dateString)
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
-}
-// ✅ AI 추천받고 저장하는 함수 (지금은 실제 동작하지 않음)
-async function generateAndSaveRecipe() {
-  loading.value = true
-  try {
-    // 1. 인벤토리 재고 가져오기 (예: /api/inventories/1/items)
-    // 2. AI 서버에 item_ids 보내기 → 추천 레시피 받기
-    // 3. /api/recipes POST로 저장
-    // 4. 저장된 레시피 다시 불러오기
-    alert('🔧 Not connected to BackEnd!')
-    // await fetchSavedRecipes()
-  } catch (e) {
-    console.error('Failed getting Recipe!:', e)
-  } finally {
-    loading.value = false
-  }
 }
 </script>
 

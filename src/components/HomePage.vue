@@ -5,9 +5,9 @@
       <section class="cards">
         <div class="card expiring">
           <h3>Items Expiring Soon</h3>
-          <span class="badge red">{{ expiringItemsSorted.length }} Items</span>
+          <span class="badge red">{{ expiringItems.length }} Items</span>
           <ul>
-            <li v-for="item in expiringItemsSorted" :key="item.name">
+            <li v-for="item in expiringItems" :key="item.name">
               {{ item.name }} – {{ item.daysLeft }} days
             </li>
           </ul>
@@ -15,10 +15,10 @@
 
         <div class="card low-stock">
           <h3>Low Stock Items</h3>
-          <span class="badge black">{{ filteredLowStockItems.length }} Items</span>
+          <span class="badge black">{{ lowStockItems.length }} Items</span>
           <ul>
-            <li v-for="item in filteredLowStockItems" :key="item.name">
-              {{ item.name }} – {{ item.qtyLeft }} left
+            <li v-for="item in lowStockItems" :key="item.name">
+              {{ item.name }} – {{ item.qty }} left
             </li>
           </ul>
         </div>
@@ -27,54 +27,44 @@
           <h3>Recipe Suggestions</h3>
           <ul>
             <li v-for="rec in recipeSuggestions" :key="rec.name">
-              {{ rec.name }} <small>({{ rec.matchPercent }}% ingredients)</small>
+              {{ rec.name }} <small>({{ rec.matchPercent }}% match)</small>
             </li>
           </ul>
         </div>
 
+        <!-- ✅ 추가된 Quick Actions 카드 -->
         <div class="card actions">
           <h3>Quick Actions</h3>
-          <button class="action-btn primary" @click="openAddForm">Add New Item</button>
-          <button class="action-btn" @click="goToShoppingList">Generate Shopping List</button>
-          <button class="action-btn" @click="goToRecipes">Find Recipes</button>
+          <button class="action-btn primary" @click="showAddForm = true">Add New Item</button>
+          <button class="action-btn" @click="$router.push('/receipt')">Scan Receipt</button>
+          <button class="action-btn" @click="$router.push('/recipes')">Find Recipes</button>
 
           <div v-if="showAddForm" class="add-item-form">
-            <label>
-              Storage:
-              <select v-model="newItem.section">
-                <option disabled value="">-- 선택 --</option>
-                <option value="Refrigerated">Refrigerated</option>
-                <option value="Frozen">Frozen</option>
-              </select>
-            </label>
-
-            <label>
-              Category:
-              <input v-model="newItem.category" placeholder="Category (ex. Dairy)" />
-            </label>
-
             <label>
               Name:
               <input v-model="newItem.name" placeholder="Item name" />
             </label>
-
             <label>
-              Capacity:
-              <input v-model="newItem.capacity" placeholder="e.g. 500g, 2L" />
+              Section:
+              <select v-model="newItem.section">
+                <option value="Fridge">Fridge</option>
+                <option value="Freezer">Freezer</option>
+              </select>
             </label>
-
+            <label>
+              Category:
+              <input v-model="newItem.category" placeholder="Category" />
+            </label>
             <label>
               Quantity:
-              <input v-model.number="newItem.qty" type="number" min="1" />
+              <input v-model="newItem.qty" placeholder="Quantity" />
             </label>
-
             <label>
-              Days Left:
-              <input v-model.number="newItem.daysLeft" type="number" min="0" />
+              Expiration Date:
+              <input v-model="newItem.expirationDate" type="date" />
             </label>
-
             <div class="form-actions">
-              <button @click="addItem">Submit</button>
+              <button @click="createItem">Submit</button>
               <button @click="showAddForm = false">Cancel</button>
             </div>
           </div>
@@ -87,12 +77,12 @@
           <h3>Inventory Overview</h3>
           <div class="donut-container">
             <div class="donut-box">
-              <h4>Refrigerated</h4>
-              <Doughnut :data="refrigeratedChartData" :options="chartOptions('Refrigerated')" />
+              <h4>Fridge</h4>
+              <Doughnut :data="fridgeChartData" :options="chartOptions" />
             </div>
             <div class="donut-box">
-              <h4>Frozen</h4>
-              <Doughnut :data="frozenChartData" :options="chartOptions('Frozen')" />
+              <h4>Freezer</h4>
+              <Doughnut :data="freezerChartData" :options="chartOptions" />
             </div>
           </div>
         </div>
@@ -114,236 +104,134 @@
 </template>
 
 <script>
-import { storageSections } from '@/assets/state.js'
-import { useActivityStore } from '@/stores/activity'
 import { Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, CategoryScale } from 'chart.js'
+import { useActivityStore } from '@/stores/activity'
+import { getInventoryItems, addInventoryItem } from '@/api/inventory'
+import { getRecommendedRecipes } from '@/api/recipe'
+
 ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale)
 
 export default {
   name: 'HomePage',
-  components: {
-    Doughnut,
-  },
-  data() {
-    return {
-      showAddForm: false,
-
-      newItem: {
-        section: '',
-        category: '',
-        name: '',
-        capacity: '',
-        qty: 1,
-        daysLeft: null,
-      },
-
-      recipeSuggestions: [
-        { name: 'Pasta Primavera', matchPercent: 80 },
-        { name: 'Greek Salad', matchPercent: 100 },
-      ],
-      recipes: [
-        { recipe_id: 1, title: '계란 볶음밥' },
-        { recipe_id: 2, title: '양배추 샐러드' },
-        { recipe_id: 3, title: '두부 파스타' },
-        { recipe_id: 4, title: '감자조림' },
-      ],
-
-      recentActivity: [
-        { id: 1, type: 'add', message: 'Added 1L Milk', time: '2 hours ago' },
-        { id: 2, type: 'remove', message: 'Removed Expired Yogurt', time: '5 hours ago' },
-        { id: 3, type: 'update', message: 'Updated Shopping List', time: 'Yesterday' },
-      ],
-
-      storageSections: [
-        { name: 'Refrigerated', categories: [] },
-        { name: 'Frozen', categories: [] },
-      ],
-    }
-  },
+  components: { Doughnut },
   setup() {
     const activity = useActivityStore()
     return { activity }
   },
-
-  methods: {
-    openAddForm() {
-      this.showAddForm = true
+  data() {
+    return {
+      allItems: [],
+      recipeSuggestions: [],
+      showAddForm: false,
+      newItem: {
+        name: '',
+        section: '',
+        category: '',
+        qty: '',
+        expirationDate: '',
+      },
+    }
+  },
+  computed: {
+    fridgeItems() {
+      return this.allItems.filter(item => item.section === 'Fridge')
     },
-    goToShoppingList() {
-      this.$router.push('/shopping-list')
+    freezerItems() {
+      return this.allItems.filter(item => item.section === 'Freezer')
     },
-    goToRecipes() {
-      this.$router.push('/recipes')
+    lowStockItems() {
+      return this.allItems.filter(item => parseFloat(item.qty) <= 3)
     },
-    timeAgo(date) {
-      const now = new Date()
-      const seconds = Math.floor((now - date) / 1000)
-
-      if (seconds < 60) return 'Just now'
-      const minutes = Math.floor(seconds / 60)
-
-      if (minutes < 60) return `${minutes} minutes ago`
-      const hours = Math.floor(minutes / 60)
-
-      if (hours < 24) return `${hours} hours ago`
-
-      return `${Math.floor(hours / 24)} days ago`
+    expiringItems() {
+      const today = new Date()
+      return this.allItems
+        .map(item => {
+          if (!item.expirationDate) return null
+          const diff = (new Date(item.expirationDate) - today) / (1000 * 60 * 60 * 24)
+          return diff <= 5 && diff >= 0
+            ? { name: item.name, daysLeft: Math.ceil(diff) }
+            : null
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.daysLeft - b.daysLeft)
     },
-    addItem() {
-      const { section, category, name, capacity, qty, daysLeft } = this.newItem
-      if (!section || !category || !name) {
-        return alert('Section, category, and name은 필수입니다.')
-      }
-
-      let expiry = null
-      if (daysLeft !== null && !isNaN(daysLeft)) {
-        const today = new Date()
-        const expiryDate = new Date(today.setDate(today.getDate() + daysLeft))
-        expiry = expiryDate.toISOString().split('T')[0]
-      }
-
-      const sec = storageSections.find((s) => s.name === section)
-      if (sec) {
-        let cat = sec.categories.find((c) => c.name === category)
-        if (!cat) {
-          cat = { name: category, items: [], count: 0 }
-          sec.categories.push(cat)
-        }
-        cat.items.push({ name, qty: `${capacity} x ${qty}`, expiry })
-        cat.count = cat.items.length
-      }
-
-      const now = new Date()
-      this.recentActivity.unshift({
-        id: Date.now(),
-        type: 'add',
-        message: `Added ${capacity} ${name}`,
-        time: this.timeAgo(now),
+    fridgeChartData() {
+      const categoryMap = {}
+      this.fridgeItems.forEach(item => {
+        categoryMap[item.category] = (categoryMap[item.category] || 0) + 1
       })
-
-      this.activity.recentLogs.unshift({
-        id: Date.now(),
-        type: 'add',
-        message: `Added ${capacity} ${name}`,
-        timestamp: new Date(),
-      })
-
-      this.newItem = { section: '', category: '', name: '', capacity: '', qty: 1, daysLeft: null }
-      this.showAddForm = false
+      return {
+        labels: Object.keys(categoryMap),
+        datasets: [
+          {
+            label: 'Fridge Items',
+            data: Object.values(categoryMap),
+            backgroundColor: ['#42A5F5', '#66BB6A', '#FFA726', '#AB47BC'],
+            borderWidth: 1,
+          },
+        ],
+      }
     },
-    chartOptions(storageName) {
-      const target = this.storageSections.find((s) => s.name === storageName) || { categories: [] }
-      const itemMap = {}
-      target.categories.forEach((cat) => {
-        itemMap[cat.name] = cat.items.map((item) => ({
-          name: item.name,
-          qty: item.qty,
-          expiry: item.expiry || 'N/A',
-        }))
+    freezerChartData() {
+      const categoryMap = {}
+      this.freezerItems.forEach(item => {
+        categoryMap[item.category] = (categoryMap[item.category] || 0) + 1
       })
+      return {
+        labels: Object.keys(categoryMap),
+        datasets: [
+          {
+            label: 'Freezer Items',
+            data: Object.values(categoryMap),
+            backgroundColor: ['#4DD0E1', '#FFB74D', '#AED581', '#BA68C8'],
+            borderWidth: 1,
+          },
+        ],
+      }
+    },
+    chartOptions() {
       return {
         responsive: true,
         plugins: {
-          tooltip: {
-            callbacks: {
-              label: function (context) {
-                const label = context.label
-                const items = itemMap[label] || []
-                if (items.length === 0) return `${label}: 항목 없음`
-                return [`${label}:`, ...items.map((i) => `${i.name} - ${i.qty}개 - ${i.expiry}`)]
-              },
-            },
-          },
+          legend: { position: 'bottom' },
         },
       }
     },
   },
-  computed: {
-    topRecipes() {
-      return this.recipes.slice(0, 3)
+  methods: {
+    timeAgo(date) {
+      const seconds = Math.floor((new Date() - new Date(date)) / 1000)
+      if (seconds < 60) return 'Just now'
+      const minutes = Math.floor(seconds / 60)
+      if (minutes < 60) return `${minutes} minutes ago`
+      const hours = Math.floor(minutes / 60)
+      if (hours < 24) return `${hours} hours ago`
+      return `${Math.floor(hours / 24)} days ago`
     },
-    refrigeratedChartData() {
-      const refrigerated = this.storageSections.find((s) => s.name === 'Refrigerated') || {
-        categories: [],
-      }
-      const categoryCounts = {}
-      refrigerated.categories.forEach((cat) => {
-        categoryCounts[cat.name] = cat.items.length
-      })
-      return {
-        labels: Object.keys(categoryCounts),
-        datasets: [
-          {
-            label: '냉장',
-            data: Object.values(categoryCounts),
-            backgroundColor: ['#42A5F5', '#66BB6A', '#FFA726', '#AB47BC', '#FF7043'],
-            borderWidth: 1,
-          },
-        ],
+    async fetchData() {
+      try {
+        const res = await getInventoryItems(1)
+        this.allItems = res.data
+        const recipeRes = await getRecipeSuggestions()
+        this.recipeSuggestions = recipeRes.data
+      } catch (err) {
+        console.error('Dashboard fetch error:', err)
       }
     },
-    frozenChartData() {
-      const frozen = this.storageSections.find((s) => s.name === 'Frozen') || { categories: [] }
-      const categoryCounts = {}
-      frozen.categories.forEach((cat) => {
-        categoryCounts[cat.name] = cat.items.length
-      })
-      return {
-        labels: Object.keys(categoryCounts),
-        datasets: [
-          {
-            label: '냉동',
-            data: Object.values(categoryCounts),
-            backgroundColor: ['#4DD0E1', '#FFB74D', '#AED581', '#BA68C8', '#E57373'],
-            borderWidth: 1,
-          },
-        ],
+    async createItem() {
+      try {
+        const res = await addInventoryItem(this.newItem)
+        this.allItems.push(res.data)
+        this.showAddForm = false
+        this.newItem = { name: '', section: '', category: '', qty: '', expirationDate: '' }
+      } catch (err) {
+        console.error('Item creation failed:', err)
       }
     },
-    expiringItemsSorted() {
-      const items = []
-
-      for (const section of storageSections) {
-        for (const cat of section.categories) {
-          for (const item of cat.items) {
-            if (item.expiry) {
-              const expiryDate = new Date(item.expiry)
-              if (isNaN(expiryDate)) continue
-
-              const today = new Date()
-              const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24))
-
-              if (daysLeft <= 5 && daysLeft >= 0) {
-                items.push({
-                  name: item.name,
-                  daysLeft,
-                })
-              }
-            }
-          }
-        }
-      }
-
-      return items.sort((a, b) => a.daysLeft - b.daysLeft)
-    },
-    filteredLowStockItems() {
-      const result = []
-
-      for (const section of storageSections) {
-        for (const category of section.categories) {
-          for (const item of category.items) {
-            const parsedQty = parseFloat(item.qty)
-            // 수량이 3 이하
-            if (!isNaN(parsedQty) && parsedQty <= 3) {
-              result.push({ name: item.name, qtyLeft: parsedQty })
-            }
-          }
-        }
-      }
-
-      return result.sort((a, b) => a.qtyLeft - b.qtyLeft)
-    },
+  },
+  mounted() {
+    this.fetchData()
   },
 }
 </script>
