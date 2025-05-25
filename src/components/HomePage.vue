@@ -8,7 +8,7 @@
           <span class="badge red">{{ expiringItems.length }} Items</span>
           <ul>
             <li v-for="item in expiringItems" :key="item.name">
-              {{ item.name }} – {{ item.daysLeft }} days
+              {{ item.name }} – {{ item.expirationDate }}
             </li>
           </ul>
         </div>
@@ -32,7 +32,6 @@
           </ul>
         </div>
 
-        <!-- ✅ 추가된 Quick Actions 카드 -->
         <div class="card actions">
           <h3>Quick Actions</h3>
           <button class="action-btn primary" @click="showAddForm = true">Add New Item</button>
@@ -41,30 +40,41 @@
 
           <div v-if="showAddForm" class="add-item-form">
             <label>
+              Storage:
+              <select v-model="newItem.section">
+                <option disabled value="">-- 선택 --</option>
+                <option value="fridge">Refrigerated</option>
+                <option value="freezer">Frozen</option>
+              </select>
+            </label>
+
+            <label>
+              Category:
+              <input v-model="newItem.category" placeholder="Category (ex. Dairy)" />
+            </label>
+
+            <label>
               Name:
               <input v-model="newItem.name" placeholder="Item name" />
             </label>
+
             <label>
-              Section:
-              <select v-model="newItem.section">
-                <option value="Fridge">Fridge</option>
-                <option value="Freezer">Freezer</option>
-              </select>
+              Capacity:
+              <input v-model="newItem.capacity" placeholder="e.g. 500g, 2L" />
             </label>
-            <label>
-              Category:
-              <input v-model="newItem.category" placeholder="Category" />
-            </label>
+
             <label>
               Quantity:
-              <input v-model="newItem.qty" placeholder="Quantity" />
+              <input v-model.number="newItem.qty" type="number" min="1" />
             </label>
+
             <label>
               Expiration Date:
               <input v-model="newItem.expirationDate" type="date" />
             </label>
+
             <div class="form-actions">
-              <button @click="createItem">Submit</button>
+              <button @click="addItem">Submit</button>
               <button @click="showAddForm = false">Cancel</button>
             </div>
           </div>
@@ -125,41 +135,42 @@ export default {
       recipeSuggestions: [],
       showAddForm: false,
       newItem: {
-        name: '',
         section: '',
         category: '',
-        qty: '',
+        name: '',
+        capacity: '',
+        qty: 1,
         expirationDate: '',
       },
     }
   },
   computed: {
     fridgeItems() {
-      return this.allItems.filter(item => item.section === 'Fridge')
+      return this.allItems.filter(item => item.storage_type === 'fridge')
     },
     freezerItems() {
-      return this.allItems.filter(item => item.section === 'Freezer')
+      return this.allItems.filter(item => item.storage_type === 'freezer')
     },
     lowStockItems() {
-      return this.allItems.filter(item => parseFloat(item.qty) <= 3)
+      return this.allItems.filter(item => parseFloat(item.quantity) <= 3)
     },
     expiringItems() {
       const today = new Date()
       return this.allItems
         .map(item => {
-          if (!item.expirationDate) return null
-          const diff = (new Date(item.expirationDate) - today) / (1000 * 60 * 60 * 24)
+          if (!item.expiration_date) return null
+          const diff = (new Date(item.expiration_date) - today) / (1000 * 60 * 60 * 24)
           return diff <= 5 && diff >= 0
-            ? { name: item.name, daysLeft: Math.ceil(diff) }
+            ? { name: item.item_name, expirationDate: item.expiration_date }
             : null
         })
         .filter(Boolean)
-        .sort((a, b) => a.daysLeft - b.daysLeft)
+        .sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate))
     },
     fridgeChartData() {
       const categoryMap = {}
       this.fridgeItems.forEach(item => {
-        categoryMap[item.category] = (categoryMap[item.category] || 0) + 1
+        categoryMap[item.item_name] = (categoryMap[item.item_name] || 0) + 1
       })
       return {
         labels: Object.keys(categoryMap),
@@ -176,7 +187,7 @@ export default {
     freezerChartData() {
       const categoryMap = {}
       this.freezerItems.forEach(item => {
-        categoryMap[item.category] = (categoryMap[item.category] || 0) + 1
+        categoryMap[item.item_name] = (categoryMap[item.item_name] || 0) + 1
       })
       return {
         labels: Object.keys(categoryMap),
@@ -219,14 +230,25 @@ export default {
         console.error('Dashboard fetch error:', err)
       }
     },
-    async createItem() {
+    async addItem() {
+      const { section, name, qty, expirationDate } = this.newItem
+      if (!section || !name || !qty || !expirationDate) {
+        alert('Please fill all required fields')
+        return
+      }
       try {
-        const res = await addInventoryItem(this.newItem)
+        const res = await addInventoryItem({
+          inventory_id: 1,
+          item_name: name,
+          quantity: qty,
+          storage_type: section,
+          expiration_date: expirationDate,
+        })
         this.allItems.push(res.data)
         this.showAddForm = false
-        this.newItem = { name: '', section: '', category: '', qty: '', expirationDate: '' }
+        this.newItem = { section: '', category: '', name: '', capacity: '', qty: 1, expirationDate: '' }
       } catch (err) {
-        console.error('Item creation failed:', err)
+        console.error('Add item failed:', err)
       }
     },
   },

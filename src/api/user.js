@@ -15,3 +15,13 @@ export const registerUser = (registerData) => {
 export const getUserInfo = (userId) => {
   return api.get(`/user/${userId}`)
 }
+
+// ✅ 사용자 정보 업데이트
+export const updateUser = (userId, updatedData) => {
+  return api.put(`/user/${userId}`, updatedData)
+}
+
+export const updatePassword = (userId, newPassword) => {
+  return api.put(`/user/${userId}/password`, { password: newPassword })
+}
+
