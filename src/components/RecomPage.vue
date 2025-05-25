@@ -5,6 +5,17 @@
       You can get recommendations according to your stock right here, right now!
     </p>
 
+    <!-- Inventory 선택 드롭다운 -->
+    <label class="inventory-label">
+      Select Inventory:
+      <select v-model="selectedInventoryId" class="inventory-dropdown">
+        <option disabled value="">-- Please choose --</option>
+        <option v-for="inv in inventoryList" :key="inv.inventory_id" :value="inv.inventory_id">
+          {{ inv.name }} (ID: {{ inv.inventory_id }})
+        </option>
+      </select>
+    </label>
+
     <button class="manage-btn mb-4" @click="fetchRecommendedRecipes">🔍 Get Recipes!</button>
 
     <div v-if="loading" class="text-gray-500">Calling Recipes...</div>
@@ -41,22 +52,51 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref } from 'vue'
+<script setup>
+import { ref, onMounted } from 'vue'
 import { getRecommendedRecipes, getRecipeById } from '@/api/recipe'
+import { getInventoryItems, getInventoryList } from '@/api/inventory'
 
+const selectedInventoryId = ref('')
+const inventoryList = ref([])
+const inventoryItems = ref([])
+const recipes = ref([])
+const selectedRecipe = ref(null)
 const loading = ref(false)
-const recipes = ref<any[]>([])
-const selectedRecipe = ref<any | null>(null)
 
-// ✅ 로그인 연결 전까지는 userId 하드코딩
-const userId = 1
+onMounted(fetchInventoryList)
 
-// ✅ 레시피 목록 불러오기
+async function fetchInventoryList() {
+  try {
+    const res = await getInventoryList(1) // userId
+    inventoryList.value = res.data
+  } catch (err) {
+    console.error('Inventory list fetch failed:', err)
+  }
+}
+
+async function fetchInventoryItems(id) {
+  try {
+    const res = await getInventoryItems(id)
+    inventoryItems.value = res.data
+  } catch (err) {
+    console.error('Inventory item fetch failed:', err)
+  }
+}
+
 async function fetchRecommendedRecipes() {
+  if (!selectedInventoryId.value) return alert('Please select an inventory first.')
   loading.value = true
   try {
-    const res = await getRecommendedRecipes(userId)
+    await fetchInventoryItems(selectedInventoryId.value)
+    const payload = {
+      inventory_id: selectedInventoryId.value,
+      items: inventoryItems.value.map(item => ({
+        item_name: item.item_name,
+        quantity: item.quantity,
+      })),
+    }
+    const res = await getRecipesByInventory(payload)
     recipes.value = res.data
   } catch (e) {
     console.error('추천 레시피 불러오기 실패:', e)
@@ -65,8 +105,7 @@ async function fetchRecommendedRecipes() {
   }
 }
 
-// ✅ 레시피 상세 보기
-async function openRecipe(recipeId: number) {
+async function openRecipe(recipeId) {
   try {
     const res = await getRecipeById(recipeId)
     selectedRecipe.value = res.data
@@ -75,8 +114,7 @@ async function openRecipe(recipeId: number) {
   }
 }
 
-// ✅ 날짜 포맷
-function formatDate(dateString: string) {
+function formatDate(dateString) {
   const d = new Date(dateString)
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
 }
@@ -98,6 +136,18 @@ function formatDate(dateString: string) {
   padding: 0.5rem 1rem;
   border-radius: 4px;
   cursor: pointer;
+}
+.inventory-label {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 1rem;
+}
+.inventory-dropdown {
+  margin-top: 0.3rem;
+  padding: 0.4rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.95rem;
 }
 .recipe-list {
   display: flex;

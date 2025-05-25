@@ -6,15 +6,21 @@
     <div class="upload-area">
       <div class="upload-box">
         <h3>Upload Receipt</h3>
-        <input type="file" @change="handleFileUpload" accept="image/*,application/pdf" />
+        <div class="drop-zone" @dragover.prevent @drop.prevent="handleDrop">
+          Drag and drop your receipt here
+        </div>
+        <p>or</p>
+        <input type="file" ref="fileInput" @change="handleFileChange" accept="image/*" hidden />
+        <button @click="$refs.fileInput.click()">Browse Files</button>
         <p class="hint">Supports JPG, PNG, PDF up to 10MB</p>
       </div>
 
       <div class="guide-box">
         <h3>Receipt Scanner User Guide</h3>
-        <img src="/src/assets/KakaoTalk_20250525_115209143.png" alt="Receipt example" class="guide-image" />
+        <img src="@/assets/KakaoTalk_20250525_115209143.png" alt="Example Receipt" class="guide-image" />
         <p class="guide-text">
-          For better performance of the Receipt Scanner, please upload a photo file of your receipt with the <strong>Item Name</strong>, and the <strong>Quantity</strong> only.<br/>
+          For better performance of the Receipt Scanner, please upload a photo file of your receipt with the
+          <strong>Item Name</strong> and <strong>Quantity</strong> only.<br />
           For your information, follow the provided photo example.
         </p>
       </div>
@@ -23,56 +29,74 @@
     <div class="recent">
       <h3>Recent Scans</h3>
       <ul class="scan-list">
-        <li v-for="receipt in recentReceipts" :key="receipt.receipt_id">
-          <strong>{{ receipt.title || 'Receipt #' + receipt.receipt_id }}</strong><br />
-          <small>Uploaded at: {{ formatDate(receipt.uploaded_at) }}</small>
-          <a :href="'/receipt/' + receipt.receipt_id">View Details</a>
+        <li v-if="uploadResult">
+          <strong>New Upload - ID: {{ uploadResult.receipt_id }}</strong><br />
+          <small>Uploaded at {{ uploadResult.upload_time }}</small>
+          <a href="#" @click.prevent="fetchParsedItems(uploadResult.receipt_id)">View Details</a>
+        </li>
+        <li>
+          <strong>Grocery Receipt</strong><br />
+          <small>Scanned 2 hours ago</small>
+          <a href="#">View Details</a>
         </li>
       </ul>
+
+      <div v-if="parsedItems.length" class="parsed-results">
+        <h4>Parsed Items</h4>
+        <ul>
+          <li v-for="(item, idx) in parsedItems" :key="idx">
+            {{ item.name }} – {{ item.quantity }}
+          </li>
+        </ul>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { uploadReceipt, saveParsedItems, getRecentReceipts } from '@/api/receipt'
+import { uploadReceipt, getParsedItemsByReceiptId } from '@/api/receipt'
 
 export default {
   name: 'ReceiptPage',
   data() {
     return {
-      recentReceipts: [],
+      receiptImage: null,
+      uploadResult: null,
+      parsedItems: [],
     }
   },
   methods: {
-    async handleFileUpload(event) {
+    handleFileChange(event) {
       const file = event.target.files[0]
-      if (!file) return
-
+      if (file) this.upload(file)
+    },
+    handleDrop(event) {
+      const file = event.dataTransfer.files[0]
+      if (file) this.upload(file)
+    },
+    async upload(file) {
       const formData = new FormData()
       formData.append('file', file)
 
       try {
-        await uploadReceipt(formData)
-        this.fetchReceipts()
+        const res = await uploadReceipt(formData)
+        this.uploadResult = res.data
+        alert(`Uploaded! receipt_id: ${res.data.receipt_id}`)
       } catch (err) {
         console.error('Upload failed:', err)
+        alert('Failed to upload receipt.')
       }
     },
-    async fetchReceipts() {
+    async fetchParsedItems(receiptId) {
       try {
-        const res = await getRecentReceipts()
-        this.recentReceipts = res.data
+        const res = await getParsedItemsByReceiptId(receiptId)
+        this.parsedItems = res.data
       } catch (err) {
-        console.error('Failed to load recent receipts:', err)
+        console.error('Failed to fetch parsed items:', err)
+        alert('Error fetching parsed items.')
       }
     },
-    formatDate(date) {
-      return new Date(date).toLocaleString()
-    }
   },
-  mounted() {
-    this.fetchReceipts()
-  }
 }
 </script>
 
@@ -89,10 +113,12 @@ export default {
   margin-bottom: 2rem;
   color: #777;
 }
+
 .upload-area {
   display: flex;
   gap: 2rem;
   margin-bottom: 3rem;
+  flex-wrap: wrap;
 }
 .upload-box {
   flex: 1;
@@ -100,32 +126,51 @@ export default {
   padding: 1.5rem;
   border-radius: 8px;
   text-align: center;
+  min-width: 300px;
 }
-.guide-box {
-  flex: 1;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 1rem;
-  background: #f9f9f9;
-  text-align: center;
+.drop-zone {
+  height: 100px;
+  border: 1px dashed #aaa;
+  margin: 1rem 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #666;
 }
-.guide-image {
-  max-width: 100%;
-  border: 1px solid #ccc;
-  margin-bottom: 0.5rem;
-}
-.guide-text {
-  font-size: 0.9rem;
-  color: #444;
-}
-input[type='file'] {
-  display: block;
-  margin: 1rem auto;
+button {
+  background: black;
+  color: white;
+  padding: 0.5rem 1rem;
+  margin: 0.5rem 0;
+  border: none;
+  cursor: pointer;
 }
 .hint {
   font-size: 0.8rem;
   color: #999;
 }
+
+.guide-box {
+  flex: 1;
+  background: #f9f9f9;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  min-width: 300px;
+}
+.guide-box h3 {
+  margin-top: 0;
+}
+.guide-image {
+  width: 100%;
+  border-radius: 6px;
+  margin: 1rem 0;
+}
+.guide-text {
+  font-size: 0.9rem;
+  color: #444;
+}
+
 .recent h3 {
   margin-bottom: 1rem;
 }
@@ -143,5 +188,12 @@ input[type='file'] {
   float: right;
   color: #007bff;
   text-decoration: none;
+}
+.parsed-results {
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-top: 1rem;
 }
 </style>

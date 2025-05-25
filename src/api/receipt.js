@@ -19,3 +19,13 @@ export const saveParsedItems = (parsedItems) => {
 export const getRecentReceipts = () => {
   return api.get('/receipt/recent')
 }
+
+// ✅ 특정 영수증의 OCR 결과 조회
+export const getParsedItemsByReceiptId = (receiptId) => {
+  return api.get(`/parseditem/${receiptId}`)
+}
+
+// ✅ 특정 영수증의 ParsedItem 삭제 요청
+export const deleteParsedItems = (receiptId) => {
+  return api.post(`/parseditem/delete/${receiptId}`)
+}

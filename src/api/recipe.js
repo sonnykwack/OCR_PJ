@@ -1,9 +1,9 @@
-// 레시피 추천 관련 API 함수 모음
+// src/api/recipe.js
 import api from './index'
 
-// ✅ AI 추천 레시피 가져오기
-export const getRecommendedRecipes = (userId) => {
-  return api.get(`/recipe/recommend/${userId}`)
+// ✅ AI 추천 레시피 가져오기 (POST로 inventory_id, items 전송)
+export const getRecommendedRecipes = (payload) => {
+  return api.post('/recipe/recommend', payload)
 }
 
 // ✅ 레시피 상세 보기
