@@ -1,7 +1,10 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: '/api',
+   baseURL: 'http://localhost:8080',
+   headers: {
+    'Content-Type': 'application/json',
+  },
 })
 
 // 요청 시 토큰 자동 부착

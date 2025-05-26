@@ -64,17 +64,27 @@ export default {
       window.location.href = kakaoAuthUrl
     },
     async login() {
-      localStorage.setItem('token', 'dev-fake-token')
-      this.$router.push('/home')
       try {
-        const response = await api.post('/login', {
-          email: this.email,
-          password: this.password,
-        })
+        // 로그인 요청
+        const response = await api.post(
+          '/api/auth/login',
+          {
+            email: this.email,
+            password: this.password,
+          },
+          {
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
 
-        const token = response.data.token
+        // 백엔드에서 받은 토큰 저장
+        const token = response.data.accessToken || response.data.token
         localStorage.setItem('token', token)
 
+        // 모든 API 요청에 Authorization 헤더 자동 포함
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+
+        // 홈으로 이동
         this.$router.push('/home')
       } catch (err) {
         console.error(err)
