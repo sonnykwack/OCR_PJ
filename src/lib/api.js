@@ -5,13 +5,13 @@ const api = axios.create({
 })
 
 // 🔐 요청마다 토큰 자동 삽입
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
+//api.interceptors.request.use((config) => {
+//  const token = localStorage.getItem('token')
+//  if (token) {
+//    config.headers.Authorization = `Bearer ${token}`
+//  }
+//  return config
+//})
 
 // ❗ 응답 에러 공통 처리
 api.interceptors.response.use(

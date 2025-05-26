@@ -15,9 +15,8 @@
         class="inventory-card-box"
         @click="goToInventory(inv.inventory_id)"
       >
-        <!-- Backend returns inventory_name -->
         <h2 class="inventory-card-title">
-          {{ inv.inventory_name || inv.name || '(No Name)' }}
+          {{ inv.inventory_name || '(No Name)' }}
         </h2>
         <p class="inventory-count">{{ inv.itemCount }} items</p>
       </div>
@@ -40,24 +39,27 @@ export default {
   methods: {
     async fetchInventories() {
       try {
-        // 1) fetch all inventories
         const { data: list } = await getInventoryList()
         console.log('Raw inventories:', list)
 
-        // 2) for each, fetch items count
         this.inventories = await Promise.all(
           list.map(async (inv) => {
+            // fallback for id / name keys
+            const id = inv.inventory_id ?? inv.inventoryId ?? inv.id
+            const inventoryName = inv.inventory_name ?? inv.inventoryName ?? inv.name
+
+            // fetch items using correct id
             let itemCount = 0
             try {
-              const { data: items } = await getInventoryItems(inv.inventory_id)
+              const { data: items } = await getInventoryItems(id)
               itemCount = Array.isArray(items) ? items.length : 0
             } catch (e) {
-              console.error(`Items fetch failed for ${inv.inventory_id}:`, e)
+              console.error(`Items fetch failed for ${id}:`, e)
             }
-            // ensure correct field mapping
+
             return {
-              inventory_id: inv.inventory_id,
-              inventory_name: inv.inventory_name,
+              inventory_id: id,
+              inventory_name: inventoryName,
               itemCount,
             }
           }),
@@ -71,9 +73,14 @@ export default {
       const name = this.newInventoryName.trim()
       if (!name) return
       try {
-        await postInventory({ inventory_name: name })
+        const { data } = await postInventory({ inventory_name: name })
+        // 응답에 name이 포함되지 않으므로, 수동으로 입력한 이름 사용
+        this.inventories.push({
+          inventory_id: data.inventory_id,
+          inventory_name: name,
+          itemCount: 0,
+        })
         this.newInventoryName = ''
-        await this.fetchInventories()
       } catch (err) {
         console.error('Create inventory failed:', err)
         alert('인벤토리 생성에 실패했습니다.')
@@ -117,7 +124,6 @@ export default {
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.2s;
 }
 .add-inventory-btn:hover {
   background: #333;
@@ -134,7 +140,6 @@ export default {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   text-align: center;
-  transition: transform 0.2s;
 }
 .inventory-card-box:hover {
   transform: translateY(-5px);
