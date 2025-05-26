@@ -3,7 +3,7 @@ import api from './index'
 
 // ✅ 영수증 이미지 업로드 (OCR)
 export const uploadReceipt = (formData) => {
-  return api.post('/receipt', formData, {
+  return api.post('/receipts', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -22,7 +22,7 @@ export const getRecentReceipts = () => {
 
 // ✅ 특정 영수증의 OCR 결과 조회
 export const getParsedItemsByReceiptId = (receiptId) => {
-  return api.get(`/parseditem/${receiptId}`)
+  return api.get(`/receipts/${receiptId}/parsed-items`)
 }
 
 // ✅ 특정 영수증의 ParsedItem 삭제 요청

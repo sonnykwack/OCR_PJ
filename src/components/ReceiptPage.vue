@@ -54,7 +54,7 @@
 </template>
 
 <script>
-import { uploadReceipt, getParsedItemsByReceiptId } from '@/api/receipt'
+import { uploadReceipt, getParsedItemsByReceiptId } from '@/api/receipts'
 
 export default {
   name: 'ReceiptPage',
@@ -76,12 +76,12 @@ export default {
     },
     async upload(file) {
       const formData = new FormData()
-      formData.append('file', file)
+      formData.append('image', file)
 
       try {
         const res = await uploadReceipt(formData)
         this.uploadResult = res.data
-        alert(`Uploaded! receipt_id: ${res.data.receipt_id}`)
+        alert(`Uploaded! receiptId: ${res.data.receiptId}`)
       } catch (err) {
         console.error('Upload failed:', err)
         alert('Failed to upload receipt.')

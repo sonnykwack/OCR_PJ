@@ -17,11 +17,11 @@
         <h1>Welcome back</h1>
         <p class="signup">
           Don’t have an account?
-          <a href="#">Sign up</a>
+          <a href="#" @click.prevent="showSignup = true">Sign up</a>
         </p>
       </div>
 
-      <form @submit.prevent="login">
+      <form v-if="!showSignup" @submit.prevent="login">
         <input v-model="email" type="email" placeholder="Email address" required />
         <input v-model="password" type="password" placeholder="Password" required />
 
@@ -35,6 +35,18 @@
 
         <button type="submit" class="signin-btn">Sign in</button>
       </form>
+
+      <form v-else @submit.prevent="signup">
+        <input v-model="signupEmail" type="email" placeholder="Email address" required />
+        <input v-model="signupPassword" type="password" placeholder="Password" required />
+        <input v-model="signupNickname" type="text" placeholder="Nickname" required />
+        <button type="submit" class="signin-btn">Create account</button>
+        <p class="signup" style="text-align: center; margin-top: 1rem;">
+          Already have an account?
+          <a href="#" @click.prevent="showSignup = false">Back to login</a>
+        </p>
+      </form>
+
       <div class="divider"><span>Or continue with</span></div>
       <button @click="kakaoLogin" class="kakao-btn">
         <img src="@/assets/kakao-icon.png" alt="Kakao icon" class="kakao-icon" />
@@ -54,6 +66,10 @@ export default {
       email: '',
       password: '',
       remember: false,
+      showSignup: false,
+      signupEmail: '',
+      signupPassword: '',
+      signupNickname: '',
     }
   },
   methods: {
@@ -65,7 +81,6 @@ export default {
     },
     async login() {
       try {
-        // 로그인 요청
         const response = await api.post(
           '/api/auth/login',
           {
@@ -76,24 +91,42 @@ export default {
             headers: { 'Content-Type': 'application/json' },
           }
         )
-
-        // 백엔드에서 받은 토큰 저장
         const token = response.data.accessToken || response.data.token
         localStorage.setItem('token', token)
-
-        // 모든 API 요청에 Authorization 헤더 자동 포함
+        console.log(token)
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-
-        // 홈으로 이동
         this.$router.push('/home')
       } catch (err) {
         console.error(err)
         alert('로그인 실패. 이메일 또는 비밀번호를 확인하세요.')
       }
     },
+    async signup() {
+      try {
+        await api.post(
+          '/api/auth/signup',
+          {
+            email: this.signupEmail,
+            password: this.signupPassword,
+            nickname: this.signupNickname,
+          },
+          {
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+        alert('회원가입 성공! 로그인해주세요.')
+        this.showSignup = false
+        this.email = this.signupEmail
+        this.password = this.signupPassword
+      } catch (err) {
+        console.error(err)
+        alert('회원가입 실패. 이메일이 이미 존재하거나 형식이 잘못되었습니다.')
+      }
+    },
   },
 }
 </script>
+
 
 <style scoped>
 .login-page {
