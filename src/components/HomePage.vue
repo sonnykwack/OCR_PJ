@@ -1,14 +1,25 @@
 <template>
   <div class="dashboard">
     <main>
-      <!--카드 영역 -->
+      <!-- 인벤토리 선택 -->
+      <div class="inventory-select">
+        <label for="inventory">Select Inventory:</label>
+        <select v-model="selectedInventoryId" @change="fetchData">
+          <option disabled value="">-- 선택 --</option>
+          <option v-for="inv in inventories" :value="inv.inventory_id" :key="inv.inventory_id">
+            {{ inv.name }}
+          </option>
+        </select>
+      </div>
+
+      <!-- 카드 영역 -->
       <section class="cards">
         <div class="card expiring">
           <h3>Items Expiring Soon</h3>
           <span class="badge red">{{ expiringItems.length }} Items</span>
           <ul>
             <li v-for="item in expiringItems" :key="item.name">
-              {{ item.name }} – {{ item.expirationDate }}
+              {{ item.name }} – {{ item.expiration_date }}
             </li>
           </ul>
         </div>
@@ -18,7 +29,7 @@
           <span class="badge black">{{ lowStockItems.length }} Items</span>
           <ul>
             <li v-for="item in lowStockItems" :key="item.name">
-              {{ item.name }} – {{ item.qty }} left
+              {{ item.name }} – {{ item.quantity }} left
             </li>
           </ul>
         </div>
@@ -49,28 +60,18 @@
             </label>
 
             <label>
-              Category:
-              <input v-model="newItem.category" placeholder="Category (ex. Dairy)" />
-            </label>
-
-            <label>
               Name:
               <input v-model="newItem.name" placeholder="Item name" />
             </label>
 
             <label>
-              Capacity:
-              <input v-model="newItem.capacity" placeholder="e.g. 500g, 2L" />
-            </label>
-
-            <label>
               Quantity:
-              <input v-model.number="newItem.qty" type="number" min="1" />
+              <input v-model.number="newItem.quantity" type="number" min="1" />
             </label>
 
             <label>
               Expiration Date:
-              <input v-model="newItem.expirationDate" type="date" />
+              <input v-model="newItem.expiration_date" type="date" />
             </label>
 
             <div class="form-actions">
@@ -117,7 +118,7 @@
 import { Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, CategoryScale } from 'chart.js'
 import { useActivityStore } from '@/stores/activity'
-import { getInventoryItems, addInventoryItem } from '@/api/inventory'
+import { getInventoryItems, addInventoryItem, getInventoryList } from '@/api/inventory'
 import { getRecommendedRecipes } from '@/api/recipe'
 
 ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale)
@@ -131,16 +132,16 @@ export default {
   },
   data() {
     return {
+      inventories: [],
+      selectedInventoryId: '',
       allItems: [],
       recipeSuggestions: [],
       showAddForm: false,
       newItem: {
         section: '',
-        category: '',
         name: '',
-        capacity: '',
-        qty: 1,
-        expirationDate: '',
+        quantity: 1,
+        expiration_date: '',
       },
     }
   },
@@ -157,27 +158,27 @@ export default {
     expiringItems() {
       const today = new Date()
       return this.allItems
+        .filter(item => item.expiration_date)
         .map(item => {
-          if (!item.expiration_date) return null
           const diff = (new Date(item.expiration_date) - today) / (1000 * 60 * 60 * 24)
           return diff <= 5 && diff >= 0
-            ? { name: item.item_name, expirationDate: item.expiration_date }
+            ? { name: item.item_name, expiration_date: item.expiration_date }
             : null
         })
         .filter(Boolean)
-        .sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate))
+        .sort((a, b) => new Date(a.expiration_date) - new Date(b.expiration_date))
     },
     fridgeChartData() {
-      const categoryMap = {}
+      const map = {}
       this.fridgeItems.forEach(item => {
-        categoryMap[item.item_name] = (categoryMap[item.item_name] || 0) + 1
+        map[item.item_name] = (map[item.item_name] || 0) + 1
       })
       return {
-        labels: Object.keys(categoryMap),
+        labels: Object.keys(map),
         datasets: [
           {
             label: 'Fridge Items',
-            data: Object.values(categoryMap),
+            data: Object.values(map),
             backgroundColor: ['#42A5F5', '#66BB6A', '#FFA726', '#AB47BC'],
             borderWidth: 1,
           },
@@ -185,16 +186,16 @@ export default {
       }
     },
     freezerChartData() {
-      const categoryMap = {}
+      const map = {}
       this.freezerItems.forEach(item => {
-        categoryMap[item.item_name] = (categoryMap[item.item_name] || 0) + 1
+        map[item.item_name] = (map[item.item_name] || 0) + 1
       })
       return {
-        labels: Object.keys(categoryMap),
+        labels: Object.keys(map),
         datasets: [
           {
             label: 'Freezer Items',
-            data: Object.values(categoryMap),
+            data: Object.values(map),
             backgroundColor: ['#4DD0E1', '#FFB74D', '#AED581', '#BA68C8'],
             borderWidth: 1,
           },
@@ -221,39 +222,52 @@ export default {
       return `${Math.floor(hours / 24)} days ago`
     },
     async fetchData() {
+      if (!this.selectedInventoryId) return
       try {
-        const res = await getInventoryItems(1)
+        const res = await getInventoryItems(this.selectedInventoryId)
         this.allItems = res.data
-        const recipeRes = await getRecipeSuggestions()
+        const recipeRes = await getRecommendedRecipes(this.selectedInventoryId)
         this.recipeSuggestions = recipeRes.data
       } catch (err) {
         console.error('Dashboard fetch error:', err)
       }
     },
+    async fetchInventories() {
+      try {
+        const res = await getInventoryList()
+        this.inventories = res.data
+        if (res.data.length > 0) {
+          this.selectedInventoryId = res.data[0].inventory_id
+          await this.fetchData()
+        }
+      } catch (err) {
+        console.error('Inventory list fetch error:', err)
+      }
+    },
     async addItem() {
-      const { section, name, qty, expirationDate } = this.newItem
-      if (!section || !name || !qty || !expirationDate) {
+      const { section, name, quantity, expiration_date } = this.newItem
+      if (!this.selectedInventoryId || !section || !name || !quantity || !expiration_date) {
         alert('Please fill all required fields')
         return
       }
       try {
         const res = await addInventoryItem({
-          inventory_id: 1,
+          inventory_id: this.selectedInventoryId,
           item_name: name,
-          quantity: qty,
+          quantity,
           storage_type: section,
-          expiration_date: expirationDate,
+          expiration_date,
         })
         this.allItems.push(res.data)
         this.showAddForm = false
-        this.newItem = { section: '', category: '', name: '', capacity: '', qty: 1, expirationDate: '' }
+        this.newItem = { section: '', name: '', quantity: 1, expiration_date: '' }
       } catch (err) {
         console.error('Add item failed:', err)
       }
     },
   },
   mounted() {
-    this.fetchData()
+    this.fetchInventories()
   },
 }
 </script>

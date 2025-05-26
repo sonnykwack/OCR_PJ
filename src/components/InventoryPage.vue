@@ -1,51 +1,58 @@
 <template>
   <div class="inventory-page">
-    <h1>Stock Management</h1>
-    <p class="subtitle">Track and manage your inventory items</p>
+    <h1>Inventory Management</h1>
+    <p class="subtitle">Manage your inventories and items</p>
 
-    <!-- Fridge and Freezer Side-by-Side -->
+    <div>
+      <input v-model="newInventoryName" placeholder="New Inventory Name" />
+      <button @click="createInventory">Add Inventory</button>
+    </div>
+
     <div class="section-container">
-      <div class="section-box">
-        <h2>Fridge</h2>
-        <div v-for="item in filteredInventories('Fridge')" :key="item.id" class="inventory-card">
+      <div v-for="inventory in inventories" :key="inventory.id" class="section-box">
+        <h2>
+          <input v-model="inventory.name" @blur="renameInventory(inventory)" />
+          <button @click="deleteInventoryById(inventory.id)">Delete</button>
+        </h2>
+
+        <h3>Fridge</h3>
+        <div v-for="item in inventory.items.filter(i => i.storage_type === 'fridge')" :key="item.id" class="inventory-card">
           <div class="info">
-            <h3>{{ item.name }}</h3>
-            <p>Category: {{ item.category }}</p>
-            <p>Quantity: {{ item.qty }}</p>
-            <p v-if="item.expirationDate">Expires: {{ item.expirationDate }}</p>
+            <p>{{ item.item_name }}</p>
+            <p>Qty: {{ item.quantity }}</p>
+            <p>Expiry: {{ item.expiration_date }}</p>
           </div>
           <div class="actions">
             <button @click="openEditModal(item)">Edit</button>
-            <button @click="deleteItem(item.id)">Delete</button>
+            <button @click="deleteItem(item.id, inventory.id)">Delete</button>
           </div>
         </div>
-      </div>
-      <div class="section-box">
-        <h2>Freezer</h2>
-        <div v-for="item in filteredInventories('Freezer')" :key="item.id" class="inventory-card">
+
+        <h3>Freezer</h3>
+        <div v-for="item in inventory.items.filter(i => i.storage_type === 'freezer')" :key="item.id" class="inventory-card">
           <div class="info">
-            <h3>{{ item.name }}</h3>
-            <p>Category: {{ item.category }}</p>
-            <p>Quantity: {{ item.qty }}</p>
-            <p v-if="item.expirationDate">Expires: {{ item.expirationDate }}</p>
+            <p>{{ item.item_name }}</p>
+            <p>Qty: {{ item.quantity }}</p>
+            <p>Expiry: {{ item.expiration_date }}</p>
           </div>
           <div class="actions">
             <button @click="openEditModal(item)">Edit</button>
-            <button @click="deleteItem(item.id)">Delete</button>
+            <button @click="deleteItem(item.id, inventory.id)">Delete</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Edit Modal -->
     <div v-if="showEditModal" class="edit-modal">
       <div class="modal-content">
         <h3>Edit Item</h3>
-        <input v-model="editItem.name" placeholder="Name" />
-        <input v-model="editItem.category" placeholder="Category" />
-        <input v-model="editItem.section" placeholder="Section" />
-        <input v-model="editItem.qty" placeholder="Quantity" />
-        <input v-model="editItem.expirationDate" type="date" />
+        <input v-model="editItem.item_name" placeholder="Name" />
+        <input v-model="editItem.quantity" placeholder="Quantity" />
+        <input v-model="editItem.expiration_date" type="date" placeholder="Expiration Date" />
+        <select v-model="editItem.storage_type">
+          <option value="fridge">Fridge</option>
+          <option value="freezer">Freezer</option>
+        </select>
         <div class="modal-actions">
           <button @click="updateItem">Save</button>
           <button @click="closeEditModal">Cancel</button>
@@ -57,7 +64,11 @@
 
 <script>
 import {
+  getInventoryList,
   getInventoryItems,
+  postInventory,
+  updateInventory,
+  deleteInventory,
   addInventoryItem,
   updateInventoryItem,
   deleteInventoryItem
@@ -68,32 +79,57 @@ export default {
   data() {
     return {
       inventories: [],
+      newInventoryName: '',
       showEditModal: false,
-      editItem: {}
+      editItem: {},
+      currentInventoryId: null
     }
   },
   methods: {
-    filteredInventories(section) {
-      return this.inventories.filter(item => item.section === section)
-    },
     async fetchInventories() {
       try {
-        const res = await getInventoryItems(1) // mock user ID 1
-        this.inventories = res.data
+        const res = await getInventoryList()
+        const allInventories = res.data
+
+        const inventoriesWithItems = await Promise.all(
+          allInventories.map(async (inv) => {
+            const itemRes = await getInventoryItems(inv.id)
+            return { ...inv, items: itemRes.data }
+          })
+        )
+        this.inventories = inventoriesWithItems
       } catch (err) {
-        console.error('Inventory fetch failed:', err)
+        console.error('Fetch failed:', err)
       }
     },
-    async deleteItem(id) {
+    async createInventory() {
+      if (!this.newInventoryName) return
       try {
-        await deleteInventoryItem(id)
-        this.inventories = this.inventories.filter(item => item.id !== id)
+        const res = await postInventory({ name: this.newInventoryName })
+        this.inventories.push({ ...res.data, items: [] })
+        this.newInventoryName = ''
       } catch (err) {
-        console.error('Item deletion failed:', err)
+        console.error('Create inventory failed:', err)
+      }
+    },
+    async renameInventory(inventory) {
+      try {
+        await updateInventory(inventory.id, { name: inventory.name })
+      } catch (err) {
+        console.error('Rename failed:', err)
+      }
+    },
+    async deleteInventoryById(id) {
+      try {
+        await deleteInventory(id)
+        this.inventories = this.inventories.filter(inv => inv.id !== id)
+      } catch (err) {
+        console.error('Delete failed:', err)
       }
     },
     openEditModal(item) {
       this.editItem = { ...item }
+      this.currentInventoryId = this.inventories.find(inv => inv.items.some(i => i.id === item.id)).id
       this.showEditModal = true
     },
     closeEditModal() {
@@ -103,11 +139,21 @@ export default {
     async updateItem() {
       try {
         const res = await updateInventoryItem(this.editItem.id, this.editItem)
-        const index = this.inventories.findIndex(i => i.id === this.editItem.id)
-        if (index !== -1) this.inventories.splice(index, 1, res.data)
+        const inventory = this.inventories.find(inv => inv.id === this.currentInventoryId)
+        const index = inventory.items.findIndex(i => i.id === this.editItem.id)
+        inventory.items.splice(index, 1, res.data)
         this.closeEditModal()
       } catch (err) {
         console.error('Item update failed:', err)
+      }
+    },
+    async deleteItem(itemId, inventoryId) {
+      try {
+        await deleteInventoryItem(itemId)
+        const inventory = this.inventories.find(inv => inv.id === inventoryId)
+        inventory.items = inventory.items.filter(i => i.id !== itemId)
+      } catch (err) {
+        console.error('Delete item failed:', err)
       }
     }
   },
@@ -130,12 +176,14 @@ export default {
   display: flex;
   gap: 2rem;
   justify-content: space-between;
+  flex-wrap: wrap;
 }
 .section-box {
   flex: 1;
   background: #f5f5f5;
   padding: 1rem;
   border-radius: 8px;
+  min-width: 300px;
 }
 .inventory-card {
   background: #fff;
