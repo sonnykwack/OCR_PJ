@@ -4,12 +4,17 @@
       <!-- 인벤토리 선택 -->
       <div class="inventory-select">
         <label for="inventory">Select Inventory:</label>
-        <select v-model="selectedInventoryId" @change="fetchData">
+        <select id="inventory" v-model="selectedInventoryId" @change="fetchData">
           <option disabled value="">-- 선택 --</option>
           <option v-for="inv in inventories" :value="inv.inventory_id" :key="inv.inventory_id">
             {{ inv.name }}
           </option>
         </select>
+      </div>
+
+      <!-- 현재 선택된 인벤토리 이름 표시 -->
+      <div class="inventory-header">
+        <h2>{{ currentInventoryName }}</h2>
       </div>
 
       <!-- 카드 영역 -->
@@ -18,8 +23,8 @@
           <h3>Items Expiring Soon</h3>
           <span class="badge red">{{ expiringItems.length }} Items</span>
           <ul>
-            <li v-for="item in expiringItems" :key="item.name">
-              {{ item.name }} – {{ item.expiration_date }}
+            <li v-for="item in expiringItems" :key="item.id || item.item_name">
+              {{ item.item_name }} – {{ item.expiration_date }}
             </li>
           </ul>
         </div>
@@ -28,8 +33,8 @@
           <h3>Low Stock Items</h3>
           <span class="badge black">{{ lowStockItems.length }} Items</span>
           <ul>
-            <li v-for="item in lowStockItems" :key="item.name">
-              {{ item.name }} – {{ item.quantity }} left
+            <li v-for="item in lowStockItems" :key="item.id || item.item_name">
+              {{ item.item_name }} – {{ item.quantity }} left
             </li>
           </ul>
         </div>
@@ -37,7 +42,7 @@
         <div class="card suggestions">
           <h3>Recipe Suggestions</h3>
           <ul>
-            <li v-for="rec in recipeSuggestions" :key="rec.name">
+            <li v-for="rec in recipeSuggestions" :key="rec.id || rec.name">
               {{ rec.name }} <small>({{ rec.matchPercent }}% match)</small>
             </li>
           </ul>
@@ -45,39 +50,50 @@
 
         <div class="card actions">
           <h3>Quick Actions</h3>
-          <button class="action-btn primary" @click="showAddForm = true">Add New Item</button>
+          <button class="action-btn primary" @click="showAddForm = true">Add Item</button>
           <button class="action-btn" @click="$router.push('/receipt')">Scan Receipt</button>
           <button class="action-btn" @click="$router.push('/recipes')">Find Recipes</button>
+          <button class="action-btn" @click="showManageItems = !showManageItems">
+            {{ showManageItems ? 'Hide Management' : 'Edit Items' }}
+          </button>
 
+          <!-- 아이템 추가 폼 -->
           <div v-if="showAddForm" class="add-item-form">
             <label>
               Storage:
-              <select v-model="newItem.section">
+              <select v-model="newItem.storage_type">
                 <option disabled value="">-- 선택 --</option>
-                <option value="fridge">Refrigerated</option>
-                <option value="freezer">Frozen</option>
+                <option value="fridge">Fridge</option>
+                <option value="freezer">Freezer</option>
               </select>
             </label>
-
             <label>
               Name:
-              <input v-model="newItem.name" placeholder="Item name" />
+              <input v-model="newItem.item_name" placeholder="Item name" />
             </label>
-
             <label>
               Quantity:
               <input v-model.number="newItem.quantity" type="number" min="1" />
             </label>
-
             <label>
               Expiration Date:
               <input v-model="newItem.expiration_date" type="date" />
             </label>
-
             <div class="form-actions">
               <button @click="addItem">Submit</button>
-              <button @click="showAddForm = false">Cancel</button>
+              <button @click="cancelAdd">Cancel</button>
             </div>
+          </div>
+
+          <!-- 아이템 관리 목록 -->
+          <div v-if="showManageItems" class="manage-items">
+            <ul>
+              <li v-for="item in allItems" :key="item.id" class="manage-item">
+                <span>{{ item.item_name }} ({{ item.quantity }}) - {{ item.expiration_date }}</span>
+                <button @click="openEditModal(item)">Edit</button>
+                <button @click="deleteItem(item.id)">Delete</button>
+              </li>
+            </ul>
           </div>
         </div>
       </section>
@@ -104,12 +120,41 @@
             <li v-for="(log, idx) in activity.recentLogs" :key="log.id || idx">
               <span v-if="log.type === 'add'">➕</span>
               <span v-else-if="log.type === 'remove'">➖</span>
-              {{ log.message }}
-              <small>– {{ timeAgo(log.timestamp) }}</small>
+              {{ log.message }} <small>– {{ timeAgo(log.timestamp) }}</small>
             </li>
           </ul>
         </div>
       </section>
+
+      <!-- 아이템 수정 모달 -->
+      <div v-if="showEditModal" class="edit-modal">
+        <div class="modal-content">
+          <h3>Edit Item</h3>
+          <label>
+            Name:
+            <input v-model="editItem.item_name" placeholder="Name" />
+          </label>
+          <label>
+            Quantity:
+            <input v-model.number="editItem.quantity" type="number" placeholder="Quantity" />
+          </label>
+          <label>
+            Expiration Date:
+            <input v-model="editItem.expiration_date" type="date" placeholder="Expiration Date" />
+          </label>
+          <label>
+            Storage:
+            <select v-model="editItem.storage_type">
+              <option value="fridge">Fridge</option>
+              <option value="freezer">Freezer</option>
+            </select>
+          </label>
+          <div class="modal-actions">
+            <button @click="updateItem">Save</button>
+            <button @click="closeEditModal">Cancel</button>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 </template>
@@ -118,7 +163,13 @@
 import { Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, CategoryScale } from 'chart.js'
 import { useActivityStore } from '@/stores/activity'
-import { getInventoryItems, addInventoryItem, getInventoryList } from '@/api/inventory'
+import {
+  getInventoryList,
+  getInventoryItems,
+  addInventoryItem,
+  updateInventoryItem,
+  deleteInventoryItem,
+} from '@/api/inventory'
 import { getRecommendedRecipes } from '@/api/recipe'
 
 ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale)
@@ -133,82 +184,57 @@ export default {
   data() {
     return {
       inventories: [],
-      selectedInventoryId: '',
+      selectedInventoryId: this.$route.query.id || '',
       allItems: [],
       recipeSuggestions: [],
       showAddForm: false,
-      newItem: {
-        section: '',
-        name: '',
-        quantity: 1,
-        expiration_date: '',
-      },
+      showManageItems: false,
+      showEditModal: false,
+      newItem: { storage_type: '', item_name: '', quantity: 1, expiration_date: '' },
+      editItem: {},
     }
   },
   computed: {
+    currentInventoryName() {
+      const inv = this.inventories.find((i) => i.inventory_id === this.selectedInventoryId)
+      return inv ? inv.name : 'Loading...'
+    },
     fridgeItems() {
-      return this.allItems.filter(item => item.storage_type === 'fridge')
+      return this.allItems.filter((item) => item.storage_type === 'fridge')
     },
     freezerItems() {
-      return this.allItems.filter(item => item.storage_type === 'freezer')
+      return this.allItems.filter((item) => item.storage_type === 'freezer')
     },
     lowStockItems() {
-      return this.allItems.filter(item => parseFloat(item.quantity) <= 3)
+      return this.allItems.filter((item) => Number(item.quantity) <= 3)
     },
     expiringItems() {
       const today = new Date()
       return this.allItems
-        .filter(item => item.expiration_date)
-        .map(item => {
+        .filter((item) => item.expiration_date)
+        .map((item) => {
           const diff = (new Date(item.expiration_date) - today) / (1000 * 60 * 60 * 24)
-          return diff <= 5 && diff >= 0
-            ? { name: item.item_name, expiration_date: item.expiration_date }
-            : null
+          return diff <= 5 && diff >= 0 ? item : null
         })
         .filter(Boolean)
         .sort((a, b) => new Date(a.expiration_date) - new Date(b.expiration_date))
     },
     fridgeChartData() {
       const map = {}
-      this.fridgeItems.forEach(item => {
+      this.fridgeItems.forEach((item) => {
         map[item.item_name] = (map[item.item_name] || 0) + 1
       })
-      return {
-        labels: Object.keys(map),
-        datasets: [
-          {
-            label: 'Fridge Items',
-            data: Object.values(map),
-            backgroundColor: ['#42A5F5', '#66BB6A', '#FFA726', '#AB47BC'],
-            borderWidth: 1,
-          },
-        ],
-      }
+      return { labels: Object.keys(map), datasets: [{ data: Object.values(map), borderWidth: 1 }] }
     },
     freezerChartData() {
       const map = {}
-      this.freezerItems.forEach(item => {
+      this.freezerItems.forEach((item) => {
         map[item.item_name] = (map[item.item_name] || 0) + 1
       })
-      return {
-        labels: Object.keys(map),
-        datasets: [
-          {
-            label: 'Freezer Items',
-            data: Object.values(map),
-            backgroundColor: ['#4DD0E1', '#FFB74D', '#AED581', '#BA68C8'],
-            borderWidth: 1,
-          },
-        ],
-      }
+      return { labels: Object.keys(map), datasets: [{ data: Object.values(map), borderWidth: 1 }] }
     },
     chartOptions() {
-      return {
-        responsive: true,
-        plugins: {
-          legend: { position: 'bottom' },
-        },
-      }
+      return { responsive: true, plugins: { legend: { position: 'bottom' } } }
     },
   },
   methods: {
@@ -221,6 +247,17 @@ export default {
       if (hours < 24) return `${hours} hours ago`
       return `${Math.floor(hours / 24)} days ago`
     },
+    async fetchInventories() {
+      try {
+        const res = await getInventoryList()
+        this.inventories = res.data
+        this.selectedInventoryId =
+          this.$route.query.id || (this.inventories[0] && this.inventories[0].inventory_id)
+        await this.fetchData()
+      } catch (err) {
+        console.error('Inventory list fetch error:', err)
+      }
+    },
     async fetchData() {
       if (!this.selectedInventoryId) return
       try {
@@ -232,37 +269,47 @@ export default {
         console.error('Dashboard fetch error:', err)
       }
     },
-    async fetchInventories() {
-      try {
-        const res = await getInventoryList()
-        this.inventories = res.data
-        if (res.data.length > 0) {
-          this.selectedInventoryId = res.data[0].inventory_id
-          await this.fetchData()
-        }
-      } catch (err) {
-        console.error('Inventory list fetch error:', err)
-      }
+    cancelAdd() {
+      this.showAddForm = false
+      this.newItem = { storage_type: '', item_name: '', quantity: 1, expiration_date: '' }
     },
     async addItem() {
-      const { section, name, quantity, expiration_date } = this.newItem
-      if (!this.selectedInventoryId || !section || !name || !quantity || !expiration_date) {
-        alert('Please fill all required fields')
-        return
-      }
+      if (!this.selectedInventoryId || !this.newItem.storage_type || !this.newItem.item_name) return
       try {
         const res = await addInventoryItem({
           inventory_id: this.selectedInventoryId,
-          item_name: name,
-          quantity,
-          storage_type: section,
-          expiration_date,
+          ...this.newItem,
         })
         this.allItems.push(res.data)
-        this.showAddForm = false
-        this.newItem = { section: '', name: '', quantity: 1, expiration_date: '' }
+        this.cancelAdd()
       } catch (err) {
         console.error('Add item failed:', err)
+      }
+    },
+    async deleteItem(id) {
+      try {
+        await deleteInventoryItem(id)
+        this.allItems = this.allItems.filter((i) => i.id !== id)
+      } catch (err) {
+        console.error('Delete item failed:', err)
+      }
+    },
+    openEditModal(item) {
+      this.editItem = { ...item }
+      this.showEditModal = true
+    },
+    closeEditModal() {
+      this.showEditModal = false
+      this.editItem = {}
+    },
+    async updateItem() {
+      try {
+        const res = await updateInventoryItem(this.editItem.id, this.editItem)
+        const idx = this.allItems.findIndex((i) => i.id === this.editItem.id)
+        if (idx >= 0) this.allItems.splice(idx, 1, res.data)
+        this.closeEditModal()
+      } catch (err) {
+        console.error('Update item failed:', err)
       }
     },
   },
@@ -279,60 +326,12 @@ export default {
   height: 100vh;
   font-family: Arial, sans-serif;
 }
-
-/* 네비게이션 */
-.navbar {
-  display: flex;
-  align-items: center;
-  padding: 0 2rem;
-  background: #fff;
-  height: 60px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+.inventory-select {
+  margin-bottom: 1rem;
 }
-.logo {
-  height: 40px;
+.inventory-header {
+  margin-bottom: 2rem;
 }
-.nav-links {
-  display: flex;
-  list-style: none;
-  margin-left: 2rem;
-  flex: 1;
-}
-.nav-links li {
-  margin-right: 1.5rem;
-  cursor: pointer;
-  color: #555;
-}
-.nav-links li.active {
-  color: #000;
-  font-weight: bold;
-}
-.nav-actions {
-  display: flex;
-  align-items: center;
-}
-.icon-btn {
-  background: none;
-  border: none;
-  font-size: 1.2rem;
-  margin-right: 1rem;
-  cursor: pointer;
-}
-.avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-}
-
-/* 메인 콘텐츠 */
-main {
-  flex: 1;
-  overflow-y: auto;
-  padding: 2rem;
-  background: #f5f5f5;
-}
-
-/* 카드 레이아웃 */
 .cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -358,13 +357,6 @@ main {
   flex-direction: column;
   gap: 0.75rem;
 }
-
-.card.actions h3 {
-  font-size: 1.1rem;
-  margin-bottom: 0.5rem;
-  color: #333;
-}
-
 .action-btn {
   padding: 0.75rem 1rem;
   font-size: 0.95rem;
@@ -376,138 +368,44 @@ main {
   cursor: pointer;
   transition: all 0.2s ease;
 }
-
-.action-btn:hover {
-  background-color: #f0f0f0;
-  border-color: #999;
-}
-
 .action-btn.primary {
   background-color: #000;
   color: white;
   font-weight: 600;
   border: none;
 }
-
-.action-btn.primary:hover {
-  background-color: #222;
-}
-.badge {
-  float: right;
-  font-weight: bold;
-}
-.badge.red {
-  color: #d9534f;
-}
-.badge.black {
-  color: #000;
-}
-
-.card ul {
-  padding: 0;
+.manage-items ul {
   list-style: none;
-  margin: 0;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
 }
-.card ul li {
-  margin: 0.5rem 0;
-}
-
-/* 추가 폼*/
-.add-item-form {
-  margin-top: 1rem;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 0.75rem;
-  background: #f9f9f9;
-  padding: 1rem;
-  border-radius: 6px;
-}
-.add-item-form label {
+.manage-item {
   display: flex;
-  flex-direction: column;
-  font-size: 0.9rem;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
 }
-.add-item-form input,
-.add-item-form select {
-  margin-top: 0.25rem;
-  padding: 0.4rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-.form-actions {
-  grid-column: 1 / -1;
+.edit-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-  margin-top: 0.5rem;
-}
-.form-actions button {
-  padding: 0.5rem 1rem;
-  border: none;
-  background: #000;
-  color: #fff;
-  cursor: pointer;
-  border-radius: 4px;
-}
-.form-actions button:last-child {
-  background: #777;
-}
-
-/* 개요 & 활동 */
-.overview {
-  display: flex;
-  gap: 1.5rem;
-}
-.donut-container {
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 2rem;
-  padding: 1rem 0;
-}
-.donut-box {
-  flex: 1 1 200px;
-  max-width: 300px;
-  text-align: center;
-}
-.inventory-overview {
-  background: #fff;
-  padding: 1rem;
-  border-radius: 6px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-}
-
-.recent-activity {
-  background: #fff;
-  padding: 1rem;
-  border-radius: 6px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-}
-.inventory-overview {
-  flex: 3;
-}
-.recent-activity {
-  flex: 1;
-}
-.chart {
-  height: 250px;
-  border: 2px dashed #ccc;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  color: #aaa;
+  align-items: center;
 }
-.recent-activity ul {
-  padding: 0;
-  list-style: none;
+.modal-content {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 300px;
 }
-.recent-activity li {
-  margin: 0.75rem 0;
-}
-.recent-activity small {
-  color: #888;
-  margin-left: 0.5rem;
-  font-size: 0.9rem;
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
 }
 </style>

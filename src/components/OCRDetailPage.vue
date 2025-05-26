@@ -6,11 +6,7 @@
 
     <div v-if="parsedItems.length" class="item-form">
       <form @submit.prevent="submitItems">
-        <div
-          v-for="(item, index) in parsedItems"
-          :key="index"
-          class="item-row"
-        >
+        <div v-for="(item, index) in parsedItems" :key="index" class="item-row">
           <input v-model="item.name" placeholder="Item Name" required />
           <input v-model="item.quantity" placeholder="Quantity" required />
           <select v-model="item.inventory_id">
@@ -23,7 +19,12 @@
             <option value="fridge">Fridge</option>
             <option value="freezer">Freezer</option>
           </select>
-          <input v-model="item.expiration_date" type="date" placeholder="Expiration Date" required />
+          <input
+            v-model="item.expiration_date"
+            type="date"
+            placeholder="Expiration Date"
+            required
+          />
         </div>
 
         <button type="submit">Save Selected Items</button>
@@ -34,7 +35,7 @@
 
 <script>
 import { getParsedItems, deleteParsedItems, saveParsedItems } from '@/api/receipt'
-import { getInventories } from '@/api/inventory'
+import { getInventories } from '@/api/inventoires'
 
 export default {
   name: 'OCRDetailPage',
@@ -49,12 +50,9 @@ export default {
   async mounted() {
     const receiptId = this.$route.params.id
     try {
-      const [itemsRes, invRes] = await Promise.all([
-        getParsedItems(receiptId),
-        getInventories(),
-      ])
+      const [itemsRes, invRes] = await Promise.all([getParsedItems(receiptId), getInventories()])
       this.inventories = invRes.data
-      this.parsedItems = itemsRes.data.map(item => ({
+      this.parsedItems = itemsRes.data.map((item) => ({
         name: item.name,
         quantity: item.quantity,
         inventory_id: '',

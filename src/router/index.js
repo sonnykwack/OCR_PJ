@@ -12,6 +12,7 @@ const routes = [
   { path: '/receipt', component: ReceiptPage },
   { path: '/inventory', component: InventoryPage },
   { path: '/account', component: AccountPage },
+  { path: '/inventory/:id', component: InventoryPage },
   {
     path: '/oauth/kakao/callback',
     name: 'KakaoCallback',
@@ -21,7 +22,7 @@ const routes = [
   {
     path: '/receipt/:id',
     component: () => import('@/components/OCRDetailPage.vue'),
-  }
+  },
 ]
 
 const router = createRouter({

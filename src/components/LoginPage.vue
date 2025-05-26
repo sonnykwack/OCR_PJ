@@ -41,7 +41,7 @@
         <input v-model="signupPassword" type="password" placeholder="Password" required />
         <input v-model="signupNickname" type="text" placeholder="Nickname" required />
         <button type="submit" class="signin-btn">Create account</button>
-        <p class="signup" style="text-align: center; margin-top: 1rem;">
+        <p class="signup" style="text-align: center; margin-top: 1rem">
           Already have an account?
           <a href="#" @click.prevent="showSignup = false">Back to login</a>
         </p>
@@ -89,7 +89,7 @@ export default {
           },
           {
             headers: { 'Content-Type': 'application/json' },
-          }
+          },
         )
         const token = response.data.accessToken || response.data.token
         localStorage.setItem('token', token)
@@ -112,7 +112,7 @@ export default {
           },
           {
             headers: { 'Content-Type': 'application/json' },
-          }
+          },
         )
         alert('회원가입 성공! 로그인해주세요.')
         this.showSignup = false
@@ -126,7 +126,6 @@ export default {
   },
 }
 </script>
-
 
 <style scoped>
 .login-page {

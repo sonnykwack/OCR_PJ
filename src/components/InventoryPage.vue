@@ -1,78 +1,33 @@
 <template>
   <div class="inventory-page">
     <h1>Inventory Management</h1>
-    <p class="subtitle">Manage your inventories and items</p>
+    <p class="subtitle">Select an inventory to view its dashboard</p>
 
-    <div>
-      <input v-model="newInventoryName" placeholder="New Inventory Name" />
-      <button @click="createInventory">Add Inventory</button>
+    <div class="add-inventory-container">
+      <input v-model="newInventoryName" placeholder="New Inventory Name" class="inventory-input" />
+      <button @click="createInventory" class="add-inventory-btn">+ Add Inventory</button>
     </div>
 
-    <div class="section-container">
-      <div v-for="inventory in inventories" :key="inventory.id" class="section-box">
-        <h2>
-          <input v-model="inventory.name" @blur="renameInventory(inventory)" />
-          <button @click="deleteInventoryById(inventory.id)">Delete</button>
+    <div class="inventory-grid" v-if="inventories.length">
+      <div
+        v-for="inv in inventories"
+        :key="inv.inventory_id"
+        class="inventory-card-box"
+        @click="goToInventory(inv.inventory_id)"
+      >
+        <!-- Backend returns inventory_name -->
+        <h2 class="inventory-card-title">
+          {{ inv.inventory_name || inv.name || '(No Name)' }}
         </h2>
-
-        <h3>Fridge</h3>
-        <div v-for="item in inventory.items.filter(i => i.storage_type === 'fridge')" :key="item.id" class="inventory-card">
-          <div class="info">
-            <p>{{ item.item_name }}</p>
-            <p>Qty: {{ item.quantity }}</p>
-            <p>Expiry: {{ item.expiration_date }}</p>
-          </div>
-          <div class="actions">
-            <button @click="openEditModal(item)">Edit</button>
-            <button @click="deleteItem(item.id, inventory.id)">Delete</button>
-          </div>
-        </div>
-
-        <h3>Freezer</h3>
-        <div v-for="item in inventory.items.filter(i => i.storage_type === 'freezer')" :key="item.id" class="inventory-card">
-          <div class="info">
-            <p>{{ item.item_name }}</p>
-            <p>Qty: {{ item.quantity }}</p>
-            <p>Expiry: {{ item.expiration_date }}</p>
-          </div>
-          <div class="actions">
-            <button @click="openEditModal(item)">Edit</button>
-            <button @click="deleteItem(item.id, inventory.id)">Delete</button>
-          </div>
-        </div>
+        <p class="inventory-count">{{ inv.itemCount }} items</p>
       </div>
     </div>
-
-    <div v-if="showEditModal" class="edit-modal">
-      <div class="modal-content">
-        <h3>Edit Item</h3>
-        <input v-model="editItem.item_name" placeholder="Name" />
-        <input v-model="editItem.quantity" placeholder="Quantity" />
-        <input v-model="editItem.expiration_date" type="date" placeholder="Expiration Date" />
-        <select v-model="editItem.storage_type">
-          <option value="fridge">Fridge</option>
-          <option value="freezer">Freezer</option>
-        </select>
-        <div class="modal-actions">
-          <button @click="updateItem">Save</button>
-          <button @click="closeEditModal">Cancel</button>
-        </div>
-      </div>
-    </div>
+    <p v-else class="no-inventories">아직 생성된 인벤토리가 없습니다.</p>
   </div>
 </template>
 
 <script>
-import {
-  getInventoryList,
-  getInventoryItems,
-  postInventory,
-  updateInventory,
-  deleteInventory,
-  addInventoryItem,
-  updateInventoryItem,
-  deleteInventoryItem
-} from '@/api/inventory.js'
+import { getInventoryList, getInventoryItems, postInventory } from '@/api/inventory'
 
 export default {
   name: 'InventoryPage',
@@ -80,86 +35,58 @@ export default {
     return {
       inventories: [],
       newInventoryName: '',
-      showEditModal: false,
-      editItem: {},
-      currentInventoryId: null
     }
   },
   methods: {
     async fetchInventories() {
       try {
-        const res = await getInventoryList()
-        const allInventories = res.data
+        // 1) fetch all inventories
+        const { data: list } = await getInventoryList()
+        console.log('Raw inventories:', list)
 
-        const inventoriesWithItems = await Promise.all(
-          allInventories.map(async (inv) => {
-            const itemRes = await getInventoryItems(inv.id)
-            return { ...inv, items: itemRes.data }
-          })
+        // 2) for each, fetch items count
+        this.inventories = await Promise.all(
+          list.map(async (inv) => {
+            let itemCount = 0
+            try {
+              const { data: items } = await getInventoryItems(inv.inventory_id)
+              itemCount = Array.isArray(items) ? items.length : 0
+            } catch (e) {
+              console.error(`Items fetch failed for ${inv.inventory_id}:`, e)
+            }
+            // ensure correct field mapping
+            return {
+              inventory_id: inv.inventory_id,
+              inventory_name: inv.inventory_name,
+              itemCount,
+            }
+          }),
         )
-        this.inventories = inventoriesWithItems
       } catch (err) {
-        console.error('Fetch failed:', err)
+        console.error('Fetch inventories failed:', err)
       }
     },
+
     async createInventory() {
-      if (!this.newInventoryName) return
+      const name = this.newInventoryName.trim()
+      if (!name) return
       try {
-        const res = await postInventory({ name: this.newInventoryName })
-        this.inventories.push({ ...res.data, items: [] })
+        await postInventory({ inventory_name: name })
         this.newInventoryName = ''
+        await this.fetchInventories()
       } catch (err) {
         console.error('Create inventory failed:', err)
+        alert('인벤토리 생성에 실패했습니다.')
       }
     },
-    async renameInventory(inventory) {
-      try {
-        await updateInventory(inventory.id, { name: inventory.name })
-      } catch (err) {
-        console.error('Rename failed:', err)
-      }
+
+    goToInventory(id) {
+      this.$router.push({ path: `/inventory/${id}` })
     },
-    async deleteInventoryById(id) {
-      try {
-        await deleteInventory(id)
-        this.inventories = this.inventories.filter(inv => inv.id !== id)
-      } catch (err) {
-        console.error('Delete failed:', err)
-      }
-    },
-    openEditModal(item) {
-      this.editItem = { ...item }
-      this.currentInventoryId = this.inventories.find(inv => inv.items.some(i => i.id === item.id)).id
-      this.showEditModal = true
-    },
-    closeEditModal() {
-      this.showEditModal = false
-      this.editItem = {}
-    },
-    async updateItem() {
-      try {
-        const res = await updateInventoryItem(this.editItem.id, this.editItem)
-        const inventory = this.inventories.find(inv => inv.id === this.currentInventoryId)
-        const index = inventory.items.findIndex(i => i.id === this.editItem.id)
-        inventory.items.splice(index, 1, res.data)
-        this.closeEditModal()
-      } catch (err) {
-        console.error('Item update failed:', err)
-      }
-    },
-    async deleteItem(itemId, inventoryId) {
-      try {
-        await deleteInventoryItem(itemId)
-        const inventory = this.inventories.find(inv => inv.id === inventoryId)
-        inventory.items = inventory.items.filter(i => i.id !== itemId)
-      } catch (err) {
-        console.error('Delete item failed:', err)
-      }
-    }
   },
   mounted() {
     this.fetchInventories()
-  }
+  },
 }
 </script>
 
@@ -170,74 +97,59 @@ export default {
 }
 .subtitle {
   color: #666;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
-.section-container {
+.add-inventory-container {
   display: flex;
-  gap: 2rem;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
 }
-.section-box {
+.inventory-input {
   flex: 1;
-  background: #f5f5f5;
-  padding: 1rem;
-  border-radius: 8px;
-  min-width: 300px;
-}
-.inventory-card {
-  background: #fff;
-  padding: 1rem;
-  border-radius: 6px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-  margin-bottom: 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.info p {
-  margin: 0.3rem 0;
-}
-.actions button {
-  margin-left: 0.3rem;
-  background: #007bff;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.actions button:nth-child(2) {
-  background: #d9534f;
-}
-.edit-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-.modal-content {
-  background: white;
-  padding: 2rem;
-  border-radius: 10px;
-  width: 500px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.modal-content input {
   padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
 }
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1rem;
+.add-inventory-btn {
+  background: #000;
+  color: #fff;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.add-inventory-btn:hover {
+  background: #333;
+}
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+.inventory-card-box {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.2s;
+}
+.inventory-card-box:hover {
+  transform: translateY(-5px);
+}
+.inventory-card-title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+.inventory-count {
+  color: #555;
+  margin-top: 0.5rem;
+}
+.no-inventories {
+  text-align: center;
+  color: #999;
+  margin-top: 2rem;
 }
 </style>

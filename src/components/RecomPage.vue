@@ -91,7 +91,7 @@ async function fetchRecommendedRecipes() {
     await fetchInventoryItems(selectedInventoryId.value)
     const payload = {
       inventory_id: selectedInventoryId.value,
-      items: inventoryItems.value.map(item => ({
+      items: inventoryItems.value.map((item) => ({
         item_name: item.item_name,
         quantity: item.quantity,
       })),

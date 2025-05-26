@@ -1,22 +1,19 @@
 import axios from 'axios'
 
 const api = axios.create({
-   baseURL: 'http://100.123.127.122:8080',
-   headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: 'http://100.76.109.125:8080',
 })
 
-// 요청 시 토큰 자동 부착
-// api.interceptors.request.use((config) => {
-//   const token = localStorage.getItem('token')
-//   if (token) {
-//     config.headers.Authorization = `Bearer ${token}`
-//   }
-//   return config
-// })
+// 🔐 요청마다 토큰 자동 삽입
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
 
-// 응답 에러 공통 처리
+// ❗ 응답 에러 공통 처리
 api.interceptors.response.use(
   (res) => res,
   (err) => {
