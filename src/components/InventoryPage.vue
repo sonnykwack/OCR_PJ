@@ -88,7 +88,7 @@ export default {
     },
 
     goToInventory(id) {
-      this.$router.push({ path: `/inventory/${id}` })
+      this.$router.push({ path: '/home', query: { id } })
     },
   },
   mounted() {

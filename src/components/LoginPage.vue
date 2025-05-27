@@ -104,7 +104,7 @@ export default {
     async signup() {
       try {
         await api.post(
-          '/api/auth/signup',
+          '/auth/signup',
           {
             email: this.signupEmail,
             password: this.signupPassword,

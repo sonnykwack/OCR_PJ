@@ -13,7 +13,6 @@ const routes = [
   { path: '/inventory', component: InventoryPage },
   { path: '/account', component: AccountPage },
   { path: '/inventory/:id', component: InventoryPage },
-
   {
     path: '/oauth/kakao/callback',
     name: 'KakaoCallback',

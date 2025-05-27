@@ -1,7 +1,7 @@
 <template>
   <div class="receipt-page">
-    <h2 class="title">영수증 OCR 업로드</h2>
-    <p class="subtitle">영수증을 드래그하거나 선택하여 업로드하고 OCR을 진행하세요.</p>
+    <h2 class="title">Upload Receipt for OCR</h2>
+    <p class="subtitle">Drag or select a receipt image to upload and perform OCR.</p>
 
     <div class="upload-area">
       <div class="upload-box">
@@ -10,46 +10,46 @@
 
         <div v-if="imagePreview" class="drop-zone">
           <img :src="imagePreview" class="preview" alt="Receipt Preview" />
-          <p>OCR을 진행하시겠습니까?</p>
+          <p>Do you want to proceed with OCR?</p>
           <button @click="submitImage" :disabled="isLoading">✅ Yes</button>
           <button @click="resetForm" :disabled="isLoading">❌ No</button>
         </div>
       </div>
 
       <div class="guide-box">
-        <h3>📌 가이드</h3>
-        <img src="@/assets/KakaoTalk_20250525_115209143.png" class="guide-image" alt="Guide" />
+        <h3>📌 Guide</h3>
+        <img src="@/assets/OCR_Guide.png" class="guide-image" alt="Guide" />
         <p class="guide-text">
-          - 명확하게 촬영된 영수증 이미지를 업로드해 주세요.<br />
-          - OCR 진행 후 품목 정보를 확인하고 보완할 수 있습니다.<br />
-          - 품목 수정 및 저장 후 인벤토리에 자동 등록됩니다.
+          - Please upload a clearly photographed receipt image.<br />
+          - After OCR, review and edit the extracted item information.<br />
+          - After editing, the items will be automatically added to your inventory.
         </p>
       </div>
     </div>
 
-    <!-- 로딩 메시지 -->
+    <!-- Loading Message -->
     <div v-if="isLoading" class="loading-overlay">
-      <div class="loading-message">잠시만 기다려주세요... OCR 처리 중입니다.</div>
+      <div class="loading-message">Please wait... OCR is being processed.</div>
     </div>
 
-    <!-- OCR 결과 모달 -->
+    <!-- OCR Result Modal -->
     <div v-if="showModal" class="modal">
       <div class="modal-content">
-        <h3>🧾 OCR 품목 검토</h3>
+        <h3>🧾 Review Extracted Items</h3>
         <div v-for="(item, idx) in parsedItems" :key="idx" class="item-row">
-          <input v-model="item.item_name" placeholder="품목명" />
-          <input type="number" min="1" v-model.number="item.quantity" placeholder="수량" />
+          <input v-model="item.item_name" placeholder="Item name" />
+          <input type="number" min="1" v-model.number="item.quantity" placeholder="Quantity" />
 
           <select v-model="item.storage_type">
-            <option value="">보관 방식 선택</option>
-            <option value="fridge">냉장</option>
-            <option value="freezer">냉동</option>
+            <option value="">Select storage type</option>
+            <option value="fridge">Fridge</option>
+            <option value="freezer">Freezer</option>
           </select>
 
-          <input type="date" v-model="item.expiration_date" placeholder="유통기한" />
+          <input type="date" v-model="item.expiration_date" placeholder="Expiration date" />
 
           <select v-model="item.inventory_id">
-            <option disabled value="">인벤토리 선택</option>
+            <option disabled value="">Select inventory</option>
             <option v-for="inv in inventories" :key="inv.inventory_id" :value="inv.inventory_id">
               {{ inv.inventory_name }}
             </option>
@@ -59,8 +59,8 @@
         </div>
 
         <div class="modal-actions">
-          <button @click="saveItems" :disabled="isSaving">💾 저장</button>
-          <button @click="closeModal" :disabled="isSaving">취소</button>
+          <button @click="saveItems" :disabled="isSaving">💾 Save</button>
+          <button @click="closeModal" :disabled="isSaving">Cancel</button>
         </div>
       </div>
     </div>
@@ -101,10 +101,10 @@ export default {
         formData.append('image', this.imageFile)
 
         const res = await uploadReceipt(formData)
-        const receiptId = res.data.receipt_id
+        const receiptId = res.data.receiptId
 
         if (!receiptId) {
-          throw new Error('OCR 실패 또는 응답 오류: receiptId 없음')
+          throw new Error('OCR failed or response error: missing receiptId.')
         }
 
         this.receiptId = receiptId
@@ -127,7 +127,7 @@ export default {
         this.showModal = true
       } catch (err) {
         console.error('OCR or fetch failed:', err)
-        alert('OCR 처리 중 오류가 발생했습니다.')
+        alert('An error occurred during OCR processing.')
       } finally {
         this.isLoading = false
       }
@@ -137,22 +137,22 @@ export default {
       try {
         const savePromises = this.parsedItems.map((item) => {
           const payload = {
-            inventory_id: item.inventory_id,
-            item_name: item.item_name,
+            inventoryId: item.inventory_id,
+            itemName: item.item_name,
             quantity: Number(item.quantity),
-            storage_type: item.storage_type,
-            expiration_date: item.expiration_date,
+            storageType: item.storage_type,
+            expirationDate: item.expiration_date,
           }
           return addInventoryItem(payload)
         })
 
         await Promise.all(savePromises)
-        await deleteParsedItems(this.receiptId)
+        // await deleteParsedItems(this.receiptId)
         this.resetForm()
-        alert('저장 완료!')
+        alert('Save completed successfully!')
       } catch (err) {
         console.error('Save failed:', err)
-        alert('저장 중 오류가 발생했습니다.')
+        alert('An error occurred while saving.')
       } finally {
         this.isSaving = false
       }
