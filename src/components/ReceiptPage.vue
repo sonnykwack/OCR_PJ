@@ -67,8 +67,7 @@ import {
   getParsedItemsByReceiptId,
   deleteParsedItems
 } from '@/api/receipts'
-import { getInventoryList } from '@/api/inventory'
-import { addInventoryItem } from '@/api/inventoryItem'
+import { addInventoryItem, getInventoryList } from '@/api/inventory'
 
 export default {
   name: 'OCRUpload',
@@ -129,6 +128,7 @@ export default {
     },
     async saveItems() {
       try {
+        console.log('[🚀 저장 시도]')
         const savePromises = this.parsedItems.map(item => {
           return addInventoryItem({
             inventory_id: item.inventory_id,
@@ -137,10 +137,12 @@ export default {
             storage_type: item.storage_type,
             expiration_date: item.expiration_date
           })
+          console.log('[📦 payload]', payload)
+      return addInventoryItem(payload)
         })
 
         await Promise.all(savePromises)
-        await deleteParsedItems(this.receiptId)
+        //await deleteParsedItems(this.receiptId)
         this.resetForm()
         alert('✅ 저장 완료!')
       } catch (err) {
@@ -163,6 +165,7 @@ export default {
   }
 }
 </script>
+
 
 <style scoped>
 .receipt-page {

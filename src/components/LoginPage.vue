@@ -57,7 +57,7 @@
 </template>
 
 <script>
-import api from '@/lib/api'
+import api from '/src/api/index'
 
 export default {
   name: 'LoginPage',
@@ -82,7 +82,7 @@ export default {
     async login() {
       try {
         const response = await api.post(
-          '/api/auth/login',
+          '/auth/login',
           {
             email: this.email,
             password: this.password,
