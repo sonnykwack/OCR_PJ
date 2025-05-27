@@ -10,23 +10,28 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token') // 또는 sessionStorage 등
-    console.log(token)
+    const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    api.interceptors.request.use((config) => {
-  console.log('[🔍 최종 Request Headers]', config.headers)
-  return config
-})
 
+    // ✅ 로그는 여기서 함께 찍으면 됩니다
+    console.log('[🔍 최종 Request Headers]', config.headers)
 
     return config
   },
-  (error) => {
-    return Promise.reject(error)
-  },
+  (error) => Promise.reject(error)
 )
 
-// 추후 로그인 토큰이 있다면 interceptor로 Authorization 추가 가능
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      alert('인증이 만료되었습니다. 다시 로그인해주세요.')
+      window.location.href = '/'
+    }
+    return Promise.reject(error)
+  }
+)
+
 export default api
