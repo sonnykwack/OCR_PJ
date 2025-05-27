@@ -10,6 +10,7 @@
 
         <div v-if="imagePreview" class="drop-zone">
           <img :src="imagePreview" class="preview" alt="Receipt Preview" />
+
           <p>Proceed with OCR?</p>
           <button @click="submitImage" :disabled="isLoading">✅ Yes</button>
           <button @click="resetForm" :disabled="isLoading">❌ No</button>
@@ -59,8 +60,11 @@
         </div>
 
         <div class="modal-actions">
+
           <button @click="saveItems" :disabled="isSaving">💾 Save</button>
           <button @click="closeModal" :disabled="isSaving">Cancel</button>
+
+    
         </div>
       </div>
     </div>
@@ -111,6 +115,7 @@ export default {
 
         const parsed = await getParsedItemsByReceiptId(receiptId)
         this.parsedItems = parsed.data.map((item) => ({
+
           parsed_item_id: item.parsed_item_id,
           item_name: item.itemName,
           quantity: item.quantity,
@@ -148,8 +153,9 @@ export default {
         })
 
         await Promise.all(savePromises)
-        //await deleteParsedItems(this.receiptId)
+        await deleteParsedItems(this.receiptId)
         this.resetForm()
+
         alert('Save completed successfully!')
       } catch (err) {
         console.error('Save failed:', err)
