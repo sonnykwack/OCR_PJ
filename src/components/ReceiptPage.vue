@@ -9,10 +9,10 @@
         <input type="file" accept="image/*" @change="handleFileChange" />
 
         <div v-if="imagePreview" class="drop-zone">
-          <img :src="imagePreview" class="preview" alt="Receipt Preview">
+          <img :src="imagePreview" class="preview" alt="Receipt Preview" />
           <p>OCR을 진행하시겠습니까?</p>
-          <button @click="submitImage">✅ Yes</button>
-          <button @click="resetForm">❌ No</button>
+          <button @click="submitImage" :disabled="isLoading">✅ Yes</button>
+          <button @click="resetForm" :disabled="isLoading">❌ No</button>
         </div>
       </div>
 
@@ -20,13 +20,19 @@
         <h3>📌 가이드</h3>
         <img src="@/assets/KakaoTalk_20250525_115209143.png" class="guide-image" alt="Guide" />
         <p class="guide-text">
-          - 명확하게 촬영된 영수증 이미지를 업로드해 주세요.<br>
-          - OCR 진행 후 품목 정보를 확인하고 보완할 수 있습니다.<br>
+          - 명확하게 촬영된 영수증 이미지를 업로드해 주세요.<br />
+          - OCR 진행 후 품목 정보를 확인하고 보완할 수 있습니다.<br />
           - 품목 수정 및 저장 후 인벤토리에 자동 등록됩니다.
         </p>
       </div>
     </div>
 
+    <!-- 로딩 메시지 -->
+    <div v-if="isLoading" class="loading-overlay">
+      <div class="loading-message">잠시만 기다려주세요... OCR 처리 중입니다.</div>
+    </div>
+
+    <!-- OCR 결과 모달 -->
     <div v-if="showModal" class="modal">
       <div class="modal-content">
         <h3>🧾 OCR 품목 검토</h3>
@@ -53,8 +59,8 @@
         </div>
 
         <div class="modal-actions">
-          <button @click="saveItems">💾 저장</button>
-          <button @click="closeModal">취소</button>
+          <button @click="saveItems" :disabled="isSaving">💾 저장</button>
+          <button @click="closeModal" :disabled="isSaving">취소</button>
         </div>
       </div>
     </div>
@@ -62,11 +68,7 @@
 </template>
 
 <script>
-import {
-  uploadReceipt,
-  getParsedItemsByReceiptId,
-  deleteParsedItems
-} from '@/api/receipts'
+import { uploadReceipt, getParsedItemsByReceiptId, deleteParsedItems } from '@/api/receipts'
 import { addInventoryItem, getInventoryList } from '@/api/inventory'
 
 export default {
@@ -79,6 +81,8 @@ export default {
       parsedItems: [],
       inventories: [],
       showModal: false,
+      isLoading: false,
+      isSaving: false,
     }
   },
   methods: {
@@ -90,63 +94,67 @@ export default {
       }
     },
     async submitImage() {
+      if (!this.imageFile) return
+      this.isLoading = true
       try {
         const formData = new FormData()
         formData.append('image', this.imageFile)
 
         const res = await uploadReceipt(formData)
-        const receiptId = res.data.receiptId
-        console.log('[✅ receipt_id]', receiptId)
+        const receiptId = res.data.receipt_id
 
         if (!receiptId) {
-          throw new Error('❌ receipt_id가 없습니다. OCR 실패 또는 응답 오류')
+          throw new Error('OCR 실패 또는 응답 오류: receiptId 없음')
         }
 
         this.receiptId = receiptId
 
         const parsed = await getParsedItemsByReceiptId(receiptId)
-        console.log('[📦 parsed items]', parsed.data)
-
-        this.parsedItems = parsed.data.map(item => ({
+        this.parsedItems = parsed.data.map((item) => ({
           item_name: item.itemName,
           quantity: item.quantity,
           storage_type: '',
           expiration_date: '',
-          inventory_id: null
+          inventory_id: null,
         }))
 
         const invRes = await getInventoryList()
-        this.inventories = (invRes.data || []).map(inv => ({
+        this.inventories = (invRes.data || []).map((inv) => ({
           inventory_id: inv.inventoryId,
-          inventory_name: inv.inventoryName
+          inventory_name: inv.inventoryName,
         }))
 
         this.showModal = true
       } catch (err) {
         console.error('OCR or fetch failed:', err)
+        alert('OCR 처리 중 오류가 발생했습니다.')
+      } finally {
+        this.isLoading = false
       }
     },
     async saveItems() {
+      this.isSaving = true
       try {
-        console.log('[🚀 저장 시도]')
-        const savePromises = this.parsedItems.map(item => {
-          return addInventoryItem({
+        const savePromises = this.parsedItems.map((item) => {
+          const payload = {
             inventory_id: item.inventory_id,
             item_name: item.item_name,
             quantity: Number(item.quantity),
             storage_type: item.storage_type,
-            expiration_date: item.expiration_date
-          })
-          console.log('[📦 payload]', payload)
-      return addInventoryItem(payload)
+            expiration_date: item.expiration_date,
+          }
+          return addInventoryItem(payload)
         })
 
         await Promise.all(savePromises)
-        //await deleteParsedItems(this.receiptId)
+        await deleteParsedItems(this.receiptId)
         this.resetForm()
-        alert('✅ 저장 완료!')
+        alert('저장 완료!')
       } catch (err) {
         console.error('Save failed:', err)
+        alert('저장 중 오류가 발생했습니다.')
+      } finally {
+        this.isSaving = false
       }
     },
     removeItem(index) {
@@ -162,10 +170,9 @@ export default {
       this.parsedItems = []
       this.showModal = false
     },
-  }
+  },
 }
 </script>
-
 
 <style scoped>
 .receipt-page {
@@ -195,23 +202,11 @@ export default {
   min-width: 300px;
 }
 .drop-zone {
-  height: auto;
-  border: 1px dashed #aaa;
   margin: 1rem 0;
   padding: 1rem;
+  border: 1px dashed #aaa;
   color: #666;
-}
-button {
-  background: black;
-  color: white;
-  padding: 0.5rem 1rem;
-  margin: 0.5rem 0;
-  border: none;
-  cursor: pointer;
-}
-.hint {
-  font-size: 0.8rem;
-  color: #999;
+  text-align: center;
 }
 .guide-box {
   flex: 1;
@@ -220,9 +215,6 @@ button {
   border-radius: 8px;
   border: 1px solid #ccc;
   min-width: 300px;
-}
-.guide-box h3 {
-  margin-top: 0;
 }
 .guide-image {
   width: 100%;
@@ -269,5 +261,25 @@ button {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.loading-message {
+  font-size: 1.2rem;
+  color: #333;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>
