@@ -11,7 +11,11 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
-    if (token) {
+
+
+    // ❗ 인증 필요 없는 경로는 제외
+    const skipAuthPaths = ['/auth/login', '/auth/signup']
+    if (token && !skipAuthPaths.includes(config.url)) {
       config.headers.Authorization = `Bearer ${token}`
     }
 

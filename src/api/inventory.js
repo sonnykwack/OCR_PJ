@@ -27,6 +27,6 @@ export const updateInventoryItem = (itemId, data) =>
   api.put(`/inventory-items/${itemId}`, data)
 
 // ✅ 아이템 삭제
-export const deleteInventoryItem = (itemId) =>
-  api.delete(`/inventory-items/${itemId}`)
+//export const deleteInventoryItem = (itemId) =>
+//  api.delete(`/inventory-items/${itemId}`)
 

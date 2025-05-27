@@ -6,8 +6,8 @@
         <label for="inventory">Select Inventory:</label>
         <select id="inventory" v-model="selectedInventoryId" @change="fetchData">
           <option disabled value="">-- 선택 --</option>
-          <option v-for="inv in inventories" :value="inv.inventory_id" :key="inv.inventory_id">
-            {{ inv.name }}
+          <option v-for="inv in inventories" :value="inv.inventoryId" :key="inv.inventoryId">
+            {{ inv.inventoryName }}
           </option>
         </select>
       </div>
@@ -168,7 +168,7 @@ import {
   getInventoryItems,
   addInventoryItem,
   updateInventoryItem,
-  deleteInventoryItem,
+//  deleteInventoryItem,
 } from '@/api/inventory'
 import { getRecommendedRecipes } from '@/api/recipe'
 
@@ -197,7 +197,7 @@ export default {
   computed: {
     currentInventoryName() {
       const inv = this.inventories.find((i) => i.inventory_id === this.selectedInventoryId)
-      return inv ? inv.name : 'Loading...'
+  return inv ? inv.inventoryName : 'Loading...'
     },
     fridgeItems() {
       return this.allItems.filter((item) => item.storage_type === 'fridge')
