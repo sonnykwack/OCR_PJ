@@ -15,6 +15,12 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    api.interceptors.request.use((config) => {
+  console.log('[🔍 최종 Request Headers]', config.headers)
+  return config
+})
+
+
     return config
   },
   (error) => {
