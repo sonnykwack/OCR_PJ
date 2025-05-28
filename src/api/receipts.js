@@ -22,6 +22,6 @@ export const getParsedItemsByReceiptId = (receiptId) => {
 }
 
 // ✅ 특정 영수증의 ParsedItem 삭제 요청
-export const deleteParsedItems = (receiptId) => {
-  return api.post(`/parseditem/delete/${receiptId}`)
-}
+//export const deleteParsedItems = (receiptId) => {
+//  return api.post(`/parseditem/delete/${receiptId}`)
+//}

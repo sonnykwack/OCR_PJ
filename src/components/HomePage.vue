@@ -1,5 +1,6 @@
 <template>
   <div class="dashboard">
+<<<<<<< HEAD
     <!-- 인벤토리 선택 -->
     <div class="inventory-select">
       <label for="inventory">Select Inventory:</label>
@@ -35,6 +36,18 @@
             {{ item.itemName }} – {{ item.expirationDate }}
           </li>
         </ul>
+=======
+    <main>
+      <!-- 인벤토리 선택 -->
+      <div class="inventory-select">
+        <label for="inventory">Select Inventory:</label>
+        <select id="inventory" v-model="selectedInventoryId" @change="fetchData">
+          <option disabled value="">-- 선택 --</option>
+          <option v-for="inv in inventories" :value="inv.inventoryId" :key="inv.inventoryId">
+            {{ inv.inventoryName }}
+          </option>
+        </select>
+>>>>>>> 609adf4efccd3b9dcbad834ffd0d44ab46c22200
       </div>
 
       <!-- Low Stock -->
@@ -174,7 +187,11 @@ import {
   getInventoryItems,
   addInventoryItem,
   updateInventoryItem,
+<<<<<<< HEAD
   deleteInventoryItem
+=======
+//  deleteInventoryItem,
+>>>>>>> 609adf4efccd3b9dcbad834ffd0d44ab46c22200
 } from '@/api/inventory'
 import * as recipeAPI from '@/api/recipe'
 
@@ -200,8 +217,22 @@ export default {
   },
   computed: {
     currentInventoryName() {
+<<<<<<< HEAD
       const inv = this.inventories.find(i => i.inventoryId === this.selectedInventoryId)
       return inv ? inv.inventoryName : 'No Inventory'
+=======
+      const inv = this.inventories.find((i) => i.inventory_id === this.selectedInventoryId)
+  return inv ? inv.inventoryName : 'Loading...'
+    },
+    fridgeItems() {
+      return this.allItems.filter((item) => item.storage_type === 'fridge')
+    },
+    freezerItems() {
+      return this.allItems.filter((item) => item.storage_type === 'freezer')
+    },
+    lowStockItems() {
+      return this.allItems.filter((item) => Number(item.quantity) <= 3)
+>>>>>>> 609adf4efccd3b9dcbad834ffd0d44ab46c22200
     },
     expiringItems() {
       const today = new Date()

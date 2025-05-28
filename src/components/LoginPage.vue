@@ -87,9 +87,7 @@ export default {
             email: this.email,
             password: this.password,
           },
-          {
-            headers: { 'Content-Type': 'application/json' },
-          },
+          
         )
         const token = response.data.accessToken || response.data.token
         localStorage.setItem('token', token)
@@ -110,9 +108,7 @@ export default {
             password: this.signupPassword,
             nickname: this.signupNickname,
           },
-          {
-            headers: { 'Content-Type': 'application/json' },
-          },
+          
         )
         alert('회원가입 성공! 로그인해주세요.')
         this.showSignup = false

@@ -1,7 +1,12 @@
 <template>
   <div class="receipt-page">
+<<<<<<< HEAD
     <h2 class="title">Upload Receipt for OCR</h2>
     <p class="subtitle">Drag or select a receipt image to upload and perform OCR.</p>
+=======
+    <h2 class="title">Receipt OCR Upload</h2>
+    <p class="subtitle">Drag or select your receipt image to upload and perform OCR.</p>
+>>>>>>> 609adf4efccd3b9dcbad834ffd0d44ab46c22200
 
     <div class="upload-area">
       <div class="upload-box">
@@ -10,7 +15,12 @@
 
         <div v-if="imagePreview" class="drop-zone">
           <img :src="imagePreview" class="preview" alt="Receipt Preview" />
+<<<<<<< HEAD
           <p>Do you want to proceed with OCR?</p>
+=======
+
+          <p>Proceed with OCR?</p>
+>>>>>>> 609adf4efccd3b9dcbad834ffd0d44ab46c22200
           <button @click="submitImage" :disabled="isLoading">✅ Yes</button>
           <button @click="resetForm" :disabled="isLoading">❌ No</button>
         </div>
@@ -18,24 +28,40 @@
 
       <div class="guide-box">
         <h3>📌 Guide</h3>
+<<<<<<< HEAD
         <img src="@/assets/OCR_Guide.png" class="guide-image" alt="Guide" />
         <p class="guide-text">
           - Please upload a clearly photographed receipt image.<br />
           - After OCR, review and edit the extracted item information.<br />
           - After editing, the items will be automatically added to your inventory.
+=======
+        <img src="@/assets/OCRGuide.png" class="guide-image" alt="Guide" />
+        <p class="guide-text">
+          - Please upload a clear photo of your receipt.<br />
+          - After OCR, review and correct any item information.<br />
+          - Once you save, items will be automatically added to your inventory.
+>>>>>>> 609adf4efccd3b9dcbad834ffd0d44ab46c22200
         </p>
       </div>
     </div>
 
     <!-- Loading Message -->
     <div v-if="isLoading" class="loading-overlay">
+<<<<<<< HEAD
       <div class="loading-message">Please wait... OCR is being processed.</div>
+=======
+      <div class="loading-message">Please wait... Performing OCR.</div>
+>>>>>>> 609adf4efccd3b9dcbad834ffd0d44ab46c22200
     </div>
 
     <!-- OCR Result Modal -->
     <div v-if="showModal" class="modal">
       <div class="modal-content">
+<<<<<<< HEAD
         <h3>🧾 Review Extracted Items</h3>
+=======
+        <h3>🧾 Review OCR Items</h3>
+>>>>>>> 609adf4efccd3b9dcbad834ffd0d44ab46c22200
         <div v-for="(item, idx) in parsedItems" :key="idx" class="item-row">
           <input v-model="item.item_name" placeholder="Item name" />
           <input type="number" min="1" v-model.number="item.quantity" placeholder="Quantity" />
@@ -59,8 +85,16 @@
         </div>
 
         <div class="modal-actions">
+<<<<<<< HEAD
           <button @click="saveItems" :disabled="isSaving">💾 Save</button>
           <button @click="closeModal" :disabled="isSaving">Cancel</button>
+=======
+
+          <button @click="saveItems" :disabled="isSaving">💾 Save</button>
+          <button @click="closeModal" :disabled="isSaving">Cancel</button>
+
+    
+>>>>>>> 609adf4efccd3b9dcbad834ffd0d44ab46c22200
         </div>
       </div>
     </div>
@@ -68,7 +102,7 @@
 </template>
 
 <script>
-import { uploadReceipt, getParsedItemsByReceiptId, deleteParsedItems } from '@/api/receipts'
+import { uploadReceipt, getParsedItemsByReceiptId, /*deleteParsedItems*/ } from '@/api/receipts'
 import { addInventoryItem, getInventoryList } from '@/api/inventory'
 
 export default {
@@ -111,6 +145,8 @@ export default {
 
         const parsed = await getParsedItemsByReceiptId(receiptId)
         this.parsedItems = parsed.data.map((item) => ({
+
+          parsed_item_id: item.parsed_item_id,
           item_name: item.itemName,
           quantity: item.quantity,
           storage_type: '',
@@ -149,6 +185,10 @@ export default {
         await Promise.all(savePromises)
         // await deleteParsedItems(this.receiptId)
         this.resetForm()
+<<<<<<< HEAD
+=======
+
+>>>>>>> 609adf4efccd3b9dcbad834ffd0d44ab46c22200
         alert('Save completed successfully!')
       } catch (err) {
         console.error('Save failed:', err)
