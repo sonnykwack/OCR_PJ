@@ -1,26 +1,43 @@
 <template>
   <div class="inventory-page">
     <h1 class="text-2xl font-bold mb-2">AI Recipe Recommendations</h1>
-    <p class="subtitle">
-      You can get recommendations according to your stock right here, right now!
-    </p>
+    <p class="subtitle">You can generate recipes based on your stock!</p>
 
     <!-- Inventory 선택 드롭다운 -->
     <label class="inventory-label">
       Select Inventory:
       <select v-model="selectedInventoryId" class="inventory-dropdown">
         <option disabled value="">-- Please choose --</option>
-        <option v-for="inv in inventoryList" :key="inv.inventory_id" :value="inv.inventory_id">
-          {{ inv.name }} (ID: {{ inv.inventory_id }})
+        <option v-for="inv in inventoryList" :key="inv.inventoryId" :value="inv.inventoryId">
+          {{ inv.inventoryName }} (ID: {{ inv.inventoryId }})
         </option>
       </select>
     </label>
 
-    <button class="manage-btn mb-4" @click="fetchRecommendedRecipes">🔍 Get Recipes!</button>
+    <button class="manage-btn mb-4" @click="openItemModal">🧂 Select Items for Recipe</button>
 
-    <div v-if="loading" class="text-gray-500">Calling Recipes...</div>
+    <!-- 레시피 생성 모달 -->
+    <div v-if="showItemModal" class="manage-modal" @click.self="closeItemModal">
+      <div class="modal-content">
+        <h2 class="text-xl font-bold mb-2">Select Items for Recipe</h2>
+        <ul class="list-disc list-inside">
+          <li v-for="item in inventoryItems" :key="item.itemId">
+            <label>
+              <input type="checkbox" v-model="selectedItems" :value="item" />
+              {{ item.itemName }} (x{{ item.quantity }})
+            </label>
+          </li>
+        </ul>
+        <div class="modal-actions mt-4">
+          <button class="manage-btn mr-2" @click="submitRecipe">Submit</button>
+          <button class="manage-btn" @click="closeItemModal">Cancel</button>
+        </div>
+      </div>
+    </div>
 
-    <ul class="recipe-list" v-if="!loading && recipes.length > 0">
+    <!-- 생성된 레시피 목록 -->
+    <h2 class="text-lg font-semibold mt-6 mb-2">📜 Created Recipes</h2>
+    <ul class="recipe-list">
       <li
         v-for="recipe in recipes"
         :key="recipe.recipe_id"
@@ -28,23 +45,22 @@
         @click="openRecipe(recipe.recipe_id)"
       >
         <div class="title">{{ recipe.title }}</div>
-        <div class="created">Date: {{ formatDate(recipe.created_at) }}</div>
+        <div class="created">Created: {{ formatDate(recipe.created_at) }}</div>
       </li>
     </ul>
 
-    <div v-else-if="!loading" class="text-gray-500">No Recommendations.</div>
-
+    <!-- 레시피 상세 모달 -->
     <div v-if="selectedRecipe" class="manage-modal" @click.self="selectedRecipe = null">
       <div class="modal-content">
         <h2 class="text-xl font-bold mb-2">{{ selectedRecipe.title }}</h2>
-        <p class="text-gray-600 mb-3 whitespace-pre-line">{{ selectedRecipe.content }}</p>
-        <h3 class="font-semibold">Used Items</h3>
-        <ul class="list-disc list-inside mb-3">
-          <li v-for="(item, idx) in selectedRecipe.source_items" :key="idx">
-            {{ item.item_name }}
+        <p class="mb-3 whitespace-pre-line">{{ selectedRecipe.content }}</p>
+        <h3 class="font-semibold">Ingredients</h3>
+        <ul class="list-disc list-inside">
+          <li v-for="item in selectedRecipe.source_items" :key="item.itemId">
+            {{ item.itemName }}
           </li>
         </ul>
-        <div class="modal-actions">
+        <div class="modal-actions mt-4">
           <button class="manage-btn" @click="selectedRecipe = null">Close</button>
         </div>
       </div>
@@ -54,54 +70,83 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getRecommendedRecipes, getRecipeById } from '@/api/recipe'
-import { getInventoryItems, getInventoryList } from '@/api/inventory'
+import { getInventoryList, getInventoryItems } from '@/api/inventory'
+import { createRecipeFromItems, getRecipeList, getRecipeById } from '@/api/recipe'
 
 const selectedInventoryId = ref('')
 const inventoryList = ref([])
 const inventoryItems = ref([])
+const selectedItems = ref([])
 const recipes = ref([])
 const selectedRecipe = ref(null)
-const loading = ref(false)
+const showItemModal = ref(false)
 
-onMounted(fetchInventoryList)
+onMounted(() => {
+  fetchInventoryList()
+  fetchRecipeList()
+})
 
 async function fetchInventoryList() {
   try {
-    const res = await getInventoryList(1) // userId
+    const res = await getInventoryList()
     inventoryList.value = res.data
-  } catch (err) {
-    console.error('Inventory list fetch failed:', err)
+  } catch (e) {
+    console.error('Inventory list fetch failed:', e)
   }
 }
 
-async function fetchInventoryItems(id) {
+async function fetchInventoryItems() {
+  if (!selectedInventoryId.value) return
   try {
-    const res = await getInventoryItems(id)
+    const res = await getInventoryItems(selectedInventoryId.value)
     inventoryItems.value = res.data
-  } catch (err) {
-    console.error('Inventory item fetch failed:', err)
+  } catch (e) {
+    console.error('Inventory item fetch failed:', e)
   }
 }
 
-async function fetchRecommendedRecipes() {
-  if (!selectedInventoryId.value) return alert('Please select an inventory first.')
-  loading.value = true
+async function fetchRecipeList() {
   try {
-    await fetchInventoryItems(selectedInventoryId.value)
-    const payload = {
-      inventory_id: selectedInventoryId.value,
-      items: inventoryItems.value.map((item) => ({
-        item_name: item.item_name,
-        quantity: item.quantity,
-      })),
-    }
-    const res = await getRecipesByInventory(payload)
+    const res = await getRecipeList()
     recipes.value = res.data
   } catch (e) {
-    console.error('추천 레시피 불러오기 실패:', e)
-  } finally {
-    loading.value = false
+    console.error('Recipe list fetch failed:', e)
+  }
+}
+
+function openItemModal() {
+  if (!selectedInventoryId.value) {
+    alert('Please select an inventory.')
+    return
+  }
+  fetchInventoryItems()
+  showItemModal.value = true
+}
+
+function closeItemModal() {
+  showItemModal.value = false
+  selectedItems.value = []
+}
+
+async function submitRecipe() {
+  if (selectedItems.value.length === 0) {
+    alert('Please select at least one item.')
+    return
+  }
+
+  const payload = {
+  //title: 'AI Generated Recipe',
+  //content: 'LLM will auto-generate this content.', // 실제 서버에서 대체
+  source_item_ids: selectedItems.value.map((item) => item.itemId)
+}
+
+
+  try {
+    await createRecipeFromItems(payload)
+    closeItemModal()
+    fetchRecipeList()
+  } catch (e) {
+    console.error('Recipe creation failed:', e)
   }
 }
 
@@ -110,17 +155,19 @@ async function openRecipe(recipeId) {
     const res = await getRecipeById(recipeId)
     selectedRecipe.value = res.data
   } catch (e) {
-    console.error('레시피 상세 불러오기 실패:', e)
+    console.error('Failed to fetch recipe details:', e)
   }
 }
 
-function formatDate(dateString) {
-  const d = new Date(dateString)
+function formatDate(dateStr) {
+  const d = new Date(dateStr)
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
 }
 </script>
 
 <style scoped>
+@import '@/assets/recipe-page.css'; /* 필요한 스타일 정리해 두었다면 */
+
 .inventory-page {
   padding: 2rem;
   font-family: Arial, sans-serif;
@@ -150,6 +197,7 @@ function formatDate(dateString) {
   font-size: 0.95rem;
 }
 .recipe-list {
+  margin-top: 1rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;

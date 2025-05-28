@@ -1,12 +1,17 @@
 // src/api/recipe.js
 import api from './index'
 
-// ✅ AI 추천 레시피 가져오기 (POST로 inventory_id, items 전송)
-export const getRecommendedRecipes = (payload) => {
-  return api.post('/api/recipe/recommend', payload)
+// ✅ 선택한 재료 기반으로 레시피 생성
+export const createRecipeFromItems = (payload) => {
+  return api.post('/recipes', payload)
 }
 
-// ✅ 레시피 상세 보기
+// ✅ 생성된 레시피 목록 조회
+export const getRecipeList = () => {
+  return api.get('/recipes')
+}
+
+// ✅ 특정 레시피 상세 정보 조회
 export const getRecipeById = (recipeId) => {
-  return api.get(`/api/recipe/${recipeId}`)
+  return api.get(`/recipes/${recipeId}`)
 }

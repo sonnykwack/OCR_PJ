@@ -176,7 +176,7 @@ import {
   updateInventoryItem,
   deleteInventoryItem
 } from '@/api/inventory'
-import { getRecommendedRecipes } from '@/api/recipe'
+import * as recipeAPI from '@/api/recipe'
 
 ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale)
 
@@ -296,7 +296,15 @@ export default {
     async addItem() {
       if (!this.selectedInventoryId || !this.newItem.storageType || !this.newItem.itemName) return
       try {
-        const { data } = await addInventoryItem({ inventoryId: this.selectedInventoryId, ...this.newItem })
+        const payload = {
+          inventoryId: this.selectedInventoryId,
+          itemName: this.newItem.itemName,
+          quantity: this.newItem.quantity,
+          storageType: this.newItem.storageType,
+          expirationDate: this.newItem.expirationDate
+        }
+
+        const { data } = await addInventoryItem(payload)
         this.allItems.push(data)
         this.cancelAdd()
       } catch (e) { console.error(e) }
